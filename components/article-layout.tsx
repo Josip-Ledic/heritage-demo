@@ -24,9 +24,9 @@ export function ArticleLayout() {
   const contentRef = useRef<HTMLDivElement>(null)
   const preparedTextRef = useRef<ReturnType<typeof prepareWithSegments> | null>(null)
 
-  // Font configuration
-  const fontSize = 18
-  const lineHeight = 30
+  // Font configuration - improved readability
+  const fontSize = 19
+  const lineHeight = 34
   const fontFamily = "Crimson Text"
   const font = `${fontSize}px '${fontFamily}'`
   
@@ -76,7 +76,7 @@ export function ArticleLayout() {
     if (typeof window !== "undefined" && !preparedTextRef.current) {
       const textWithoutFirstChar = article.content.substring(1)
       preparedTextRef.current = prepareWithSegments(textWithoutFirstChar, font, {
-        whiteSpace: "normal",
+        whiteSpace: "pre-wrap", // Preserve paragraph breaks
       })
     }
   }, [font])
@@ -116,10 +116,10 @@ export function ArticleLayout() {
         height: DROP_CAP_HEIGHT,
       }
 
-      // Create image obstacle for motorcycle
+      // Create image obstacle for motorcycle (convert fixed position to page coordinates)
       const imageObstacle: ImageObstacle | null = motorcyclePos && motorcycleImageData ? {
         x: motorcyclePos.x - calculatedContentLeft,
-        y: motorcyclePos.y,
+        y: motorcyclePos.y + scrollY, // Add scroll offset since motorcycle is fixed
         width: motorcyclePos.width,
         height: motorcyclePos.height,
         imageData: motorcycleImageData,
@@ -197,43 +197,67 @@ export function ArticleLayout() {
 
   return (
     <div
-      className="min-h-screen bg-gradient-to-b from-[#1a2f4a] via-[#1e3a5f] to-[#152238]"
+      className="min-h-screen bg-gradient-to-b from-[#1a2f4a] via-[#1e3a5f] to-[#152238] relative"
       style={{
         userSelect: isDragging ? "none" : "auto",
         cursor: isDragging ? "grabbing" : "default",
       }}
     >
+      {/* Background image */}
+      <div
+        className="fixed inset-0 opacity-15 bg-cover bg-center bg-no-repeat"
+        style={{
+          backgroundImage: "url('/route66.avif')",
+          backgroundBlendMode: "overlay",
+          zIndex: 0,
+        }}
+      />
       {/* Header - natural flow, above motorcycle */}
-      <div className="relative text-center px-8 pt-12 pb-6" style={{ zIndex: 40 }}>
-        <div className="text-[#c19a6b] text-[9px] font-semibold tracking-[0.35em] uppercase mb-6 opacity-80">
+      <div className="relative text-center px-8 pt-16 pb-6" style={{ zIndex: 40 }}>
+        <div className="text-[#c19a6b] text-[9px] font-semibold tracking-[0.35em] uppercase mb-8 opacity-80">
           HERITAGE Motors · Est. 1952
         </div>
         <h1
-          className="font-bold text-white mb-4 px-4 leading-[0.9]"
+          className="font-bold text-white mb-6 px-4 leading-[0.85]"
           style={{
             fontFamily: fontFamily,
-            fontSize: "clamp(3rem, 8vw, 7rem)",
-            letterSpacing: "-0.03em",
-            textShadow: "0 4px 30px rgba(0,0,0,0.3)",
+            fontSize: "clamp(3.5rem, 9vw, 8rem)",
+            letterSpacing: "-0.04em",
+            textShadow: `
+              0 1px 0 rgba(193, 154, 107, 0.3),
+              0 2px 0 rgba(26, 47, 74, 0.9),
+              0 3px 0 rgba(26, 47, 74, 0.8),
+              0 4px 0 rgba(26, 47, 74, 0.7),
+              0 5px 0 rgba(26, 47, 74, 0.6),
+              0 6px 0 rgba(26, 47, 74, 0.5),
+              0 7px 0 rgba(26, 47, 74, 0.4),
+              0 8px 0 rgba(26, 47, 74, 0.3),
+              0 12px 24px rgba(0, 0, 0, 0.5),
+              0 16px 32px rgba(0, 0, 0, 0.3)
+            `,
+            fontWeight: 900,
+            transform: "translateZ(0)",
           }}
         >
           {article.title}
         </h1>
         {article.subtitle && (
           <p
-            className="text-[#faf9f6]/70 italic px-4 max-w-2xl mx-auto mb-4"
+            className="text-[#faf9f6]/80 italic px-4 max-w-3xl mx-auto mb-6"
             style={{
               fontFamily: fontFamily,
-              fontSize: "clamp(1rem, 2vw, 1.5rem)",
-              lineHeight: "1.4",
+              fontSize: "clamp(1.1rem, 2.2vw, 1.75rem)",
+              lineHeight: "1.5",
+              textShadow: "0 4px 16px rgba(26, 47, 74, 0.6)",
+              fontWeight: 400,
             }}
           >
             {article.subtitle}
           </p>
         )}
-        <div className="flex items-center justify-center gap-4 text-[10px] text-[#faf9f6]/40 tracking-[0.2em]">
+        <div className="flex items-center justify-center gap-4 text-[11px] text-[#faf9f6]/50 tracking-[0.25em] font-medium">
           {article.author && <span>BY {article.author.toUpperCase()}</span>}
-          <span className="text-[#c19a6b] opacity-60">·</span>
+          <span className="text-[#c19a6b] opacity-70">·</span>
           {article.date && <span>{article.date.toUpperCase()}</span>}
         </div>
       </div>
@@ -248,7 +272,7 @@ export function ArticleLayout() {
         }}
       >
         {/* Drop cap */}
-        {contentLeft > 0 && (
+        {contentLeft >= 0 && (
           <div
             className="absolute font-bold text-[#c19a6b] pointer-events-none leading-none"
             style={{
@@ -263,7 +287,7 @@ export function ArticleLayout() {
           </div>
         )}
 
-        {/* Body text */}
+        {/* Body text - improved typography */}
         {lines.map((line, index) => (
           <span
             key={index}
@@ -277,15 +301,17 @@ export function ArticleLayout() {
               color: "#faf9f6",
               userSelect: "text",
               zIndex: 5,
-              textShadow: "0 1px 2px rgba(0,0,0,0.1)",
+              textShadow: "0 2px 8px rgba(0,0,0,0.2)",
+              fontWeight: 400,
+              letterSpacing: "0.01em",
             }}
           >
             {line.text}
           </span>
         ))}
 
-        {/* Motorcycle - draggable, positioned absolutely on page */}
-        {motorcyclePos && motorcyclePos.x > 0 && (
+        {/* Motorcycle - draggable, fixed positioning to prevent clipping */}
+        {motorcyclePos && (
           <img
             src="/image-Photoroom.png"
             alt="Heritage Motorcycle"
@@ -300,8 +326,8 @@ export function ArticleLayout() {
               width: `${motorcyclePos.width}px`,
               height: `${motorcyclePos.height}px`,
               cursor: isDragging ? "grabbing" : "grab",
-              filter: isDragging 
-                ? "brightness(1.1) drop-shadow(0 10px 30px rgba(196, 163, 90, 0.4))" 
+              filter: isDragging
+                ? "brightness(1.1) drop-shadow(0 10px 30px rgba(196, 163, 90, 0.4))"
                 : "drop-shadow(0 5px 20px rgba(0, 0, 0, 0.3))",
               zIndex: 30,
               pointerEvents: "auto",
@@ -312,12 +338,12 @@ export function ArticleLayout() {
         )}
       </div>
 
-      {/* Hint */}
+      {/* Hint - top right corner */}
       <div
-        className="fixed top-5 left-1/2 -translate-x-1/2 text-[11px] text-white/15 bg-black/30 px-5 py-2 rounded-full pointer-events-none backdrop-blur-sm border border-white/5"
+        className="fixed top-6 right-6 text-[10px] text-white/20 bg-black/20 px-4 py-2 rounded-full pointer-events-none backdrop-blur-sm border border-white/10"
         style={{ zIndex: 100 }}
       >
-        Drag the motorcycle to see text reflow · Powered by Pretext
+        Drag the motorcycle
       </div>
 
       {/* Footer */}
