@@ -5,9 +5,10 @@ import { prepareWithSegments } from "@chenglou/pretext"
 import { article } from "@/lib/article-data"
 import {
   layoutTextWithObstacle,
-  hitTestMotorcycle,
   type TextLine,
   type MotorcyclePosition,
+  type ImageObstacle,
+  type RectObstacle,
 } from "@/lib/text-flow"
 
 export function ArticleLayout() {
@@ -16,71 +17,130 @@ export function ArticleLayout() {
   const [isDragging, setIsDragging] = useState(false)
   const [dragStart, setDragStart] = useState<{ x: number; y: number } | null>(null)
   const [motorcycleStart, setMotorcycleStart] = useState<{ x: number; y: number } | null>(null)
+  const [motorcycleImageData, setMotorcycleImageData] = useState<ImageData | null>(null)
+  const [contentWidth, setContentWidth] = useState(0)
   const [contentLeft, setContentLeft] = useState(0)
   
-  const stageRef = useRef<HTMLDivElement>(null)
+  const contentRef = useRef<HTMLDivElement>(null)
   const preparedTextRef = useRef<ReturnType<typeof prepareWithSegments> | null>(null)
 
-  // Font configuration
-  const fontSize = 18
-  const lineHeight = 30
+  // Font configuration - improved readability
+  const fontSize = 19
+  const lineHeight = 34
   const fontFamily = "Crimson Text"
   const font = `${fontSize}px '${fontFamily}'`
   
   // Layout constants
+  const CONTENT_MAX_WIDTH = 900
   const GUTTER = 80
-  const CONTENT_TOP = 180
+  const DROP_CAP_SIZE = 84
+  const DROP_CAP_WIDTH = 60
+  const DROP_CAP_HEIGHT = lineHeight * 3
 
-  // Prepare text once
+  // Load motorcycle image and extract alpha channel
+  useEffect(() => {
+    const img = new Image()
+    img.src = "/image-Photoroom.png"
+    img.onload = () => {
+      const canvas = document.createElement('canvas')
+      canvas.width = img.naturalWidth
+      canvas.height = img.naturalHeight
+      const ctx = canvas.getContext('2d')
+      
+      if (ctx) {
+        ctx.drawImage(img, 0, 0)
+        try {
+          const imageData = ctx.getImageData(0, 0, img.naturalWidth, img.naturalHeight)
+          setMotorcycleImageData(imageData)
+          
+          // Initialize motorcycle position - very large and prominent
+          const aspectRatio = img.naturalWidth / img.naturalHeight
+          const motorcycleWidth = 800
+          const motorcycleHeight = motorcycleWidth / aspectRatio
+          
+          setMotorcyclePos({
+            x: 0, // Will be centered in layout effect
+            y: 0, // Will be positioned relative to content
+            width: motorcycleWidth,
+            height: motorcycleHeight,
+          })
+        } catch (e) {
+          console.warn('Could not extract image data:', e)
+        }
+      }
+    }
+  }, [])
+
+  // Prepare text once (skip first character for drop cap)
   useEffect(() => {
     if (typeof window !== "undefined" && !preparedTextRef.current) {
-      preparedTextRef.current = prepareWithSegments(article.content, font, {
-        whiteSpace: "normal",
+      const textWithoutFirstChar = article.content.substring(1)
+      preparedTextRef.current = prepareWithSegments(textWithoutFirstChar, font, {
+        whiteSpace: "pre-wrap", // Preserve paragraph breaks
       })
     }
   }, [font])
 
   // Layout calculation
   useEffect(() => {
-    if (!preparedTextRef.current || !stageRef.current || typeof window === 'undefined') return
+    if (!preparedTextRef.current || typeof window === "undefined" || !contentRef.current) return
 
     const updateLayout = () => {
       const pageWidth = window.innerWidth
-      const pageHeight = window.innerHeight
-      const contentWidth = Math.min(pageWidth - GUTTER * 2, 900)
-      const calculatedContentLeft = (pageWidth - contentWidth) / 2
+      const calculatedContentWidth = Math.min(pageWidth - GUTTER * 2, CONTENT_MAX_WIDTH)
+      const calculatedContentLeft = (pageWidth - calculatedContentWidth) / 2
+      
+      // Get the actual Y position where content starts
+      const contentTop = contentRef.current?.getBoundingClientRect().top || 0
+      const scrollY = window.scrollY
+      const contentStartY = contentTop + scrollY
+      
+      setContentWidth(calculatedContentWidth)
       setContentLeft(calculatedContentLeft)
 
-      // Initialize motorcycle on first layout
-      if (!motorcyclePos) {
-        const motorcycleWidth = Math.min(contentWidth * 0.3, 200)
-        const motorcycleHeight = motorcycleWidth * 0.6
-        
+      // Position motorcycle centered and overlapping with title if not yet positioned
+      if (motorcyclePos && motorcyclePos.x === 0) {
         setMotorcyclePos({
-          x: calculatedContentLeft + contentWidth - motorcycleWidth - 40,
-          y: CONTENT_TOP + 80,
-          width: motorcycleWidth,
-          height: motorcycleHeight,
+          ...motorcyclePos,
+          x: calculatedContentLeft + (calculatedContentWidth - motorcyclePos.width) / 2,
+          y: contentStartY - 100, // Overlap upward into title area
         })
         return
       }
 
-      // Layout text with obstacle
+      // Create drop cap obstacle
+      const dropCapObstacle: RectObstacle = {
+        x: 0,
+        y: contentStartY,
+        width: DROP_CAP_WIDTH,
+        height: DROP_CAP_HEIGHT,
+      }
+
+      // Create image obstacle for motorcycle (convert fixed position to page coordinates)
+      const imageObstacle: ImageObstacle | null = motorcyclePos && motorcycleImageData ? {
+        x: motorcyclePos.x - calculatedContentLeft,
+        y: motorcyclePos.y + scrollY, // Add scroll offset since motorcycle is fixed
+        width: motorcyclePos.width,
+        height: motorcyclePos.height,
+        imageData: motorcycleImageData,
+      } : null
+
+      // Layout text with Pretext
       const layoutLines = layoutTextWithObstacle(
         preparedTextRef.current!,
-        contentWidth,
+        calculatedContentWidth,
         lineHeight,
-        CONTENT_TOP,
-        motorcyclePos ? {
-          ...motorcyclePos,
-          x: motorcyclePos.x - calculatedContentLeft, // Convert to content-relative
-        } : null
+        contentStartY,
+        null,
+        [dropCapObstacle],
+        imageObstacle
       )
 
-      // Convert back to page coordinates
+      // Convert to page coordinates and make relative to content div
       const pageLines = layoutLines.map(line => ({
         ...line,
         x: line.x + calculatedContentLeft,
+        y: line.y - contentStartY, // Make relative to content div
       }))
 
       setLines(pageLines)
@@ -90,107 +150,144 @@ export function ArticleLayout() {
 
     const handleResize = () => updateLayout()
     window.addEventListener("resize", handleResize)
-    return () => window.removeEventListener("resize", handleResize)
-  }, [motorcyclePos, CONTENT_TOP, GUTTER])
-
-  // Pointer handlers
-  useEffect(() => {
-    const stage = stageRef.current
-    if (!stage) return
-
-    const handlePointerDown = (e: PointerEvent) => {
-      if (!motorcyclePos) return
-
-      const x = e.clientX
-      const y = e.clientY
-
-      if (hitTestMotorcycle(x, y, motorcyclePos)) {
-        e.preventDefault()
-        setIsDragging(true)
-        setDragStart({ x, y })
-        setMotorcycleStart({ x: motorcyclePos.x, y: motorcyclePos.y })
-        stage.setPointerCapture(e.pointerId)
-      }
-    }
-
-    const handlePointerMove = (e: PointerEvent) => {
-      if (!isDragging || !dragStart || !motorcycleStart || !motorcyclePos) return
-
-      const dx = e.clientX - dragStart.x
-      const dy = e.clientY - dragStart.y
-
-      setMotorcyclePos({
-        ...motorcyclePos,
-        x: motorcycleStart.x + dx,
-        y: motorcycleStart.y + dy,
-      })
-    }
-
-    const handlePointerUp = (e: PointerEvent) => {
-      if (isDragging) {
-        setIsDragging(false)
-        setDragStart(null)
-        setMotorcycleStart(null)
-        stage.releasePointerCapture(e.pointerId)
-      }
-    }
-
-    stage.addEventListener("pointerdown", handlePointerDown)
-    window.addEventListener("pointermove", handlePointerMove)
-    window.addEventListener("pointerup", handlePointerUp)
-    window.addEventListener("pointercancel", handlePointerUp)
-
+    window.addEventListener("scroll", updateLayout) // Update on scroll too
     return () => {
-      stage.removeEventListener("pointerdown", handlePointerDown)
-      window.removeEventListener("pointermove", handlePointerMove)
-      window.removeEventListener("pointerup", handlePointerUp)
-      window.removeEventListener("pointercancel", handlePointerUp)
+      window.removeEventListener("resize", handleResize)
+      window.removeEventListener("scroll", updateLayout)
     }
-  }, [isDragging, dragStart, motorcycleStart, motorcyclePos])
+  }, [motorcyclePos, motorcycleImageData, lineHeight, GUTTER, CONTENT_MAX_WIDTH, DROP_CAP_WIDTH, DROP_CAP_HEIGHT])
+
+  // Simple drag handlers
+  const handleMotorcyclePointerDown = (e: React.PointerEvent<HTMLImageElement>) => {
+    if (!motorcyclePos) return
+    
+    e.preventDefault()
+    e.currentTarget.setPointerCapture(e.pointerId)
+    setIsDragging(true)
+    setDragStart({ x: e.clientX, y: e.clientY })
+    setMotorcycleStart({ x: motorcyclePos.x, y: motorcyclePos.y })
+  }
+
+  const handleMotorcyclePointerMove = (e: React.PointerEvent<HTMLImageElement>) => {
+    if (!isDragging || !dragStart || !motorcycleStart || !motorcyclePos) return
+
+    const dx = e.clientX - dragStart.x
+    const dy = e.clientY - dragStart.y
+
+    setMotorcyclePos({
+      ...motorcyclePos,
+      x: motorcycleStart.x + dx,
+      y: motorcycleStart.y + dy,
+    })
+  }
+
+  const handleMotorcyclePointerUp = (e: React.PointerEvent<HTMLImageElement>) => {
+    if (isDragging) {
+      e.currentTarget.releasePointerCapture(e.pointerId)
+      setIsDragging(false)
+      setDragStart(null)
+      setMotorcycleStart(null)
+    }
+  }
+
+  // Calculate content height based on text lines
+  const contentHeight = lines.length > 0 
+    ? Math.max(lines[lines.length - 1].y + lineHeight + 200, 800)
+    : 800
 
   return (
-    <>
-      {/* Full-screen stage like the demo */}
+    <div
+      className="min-h-screen bg-gradient-to-b from-[#1a2f4a] via-[#1e3a5f] to-[#152238] relative"
+      style={{
+        userSelect: isDragging ? "none" : "auto",
+        cursor: isDragging ? "grabbing" : "default",
+      }}
+    >
+      {/* Background image */}
       <div
-        ref={stageRef}
-        className="fixed inset-0 overflow-hidden bg-[#1e3a5f]"
+        className="fixed inset-0 opacity-15 bg-cover bg-center bg-no-repeat"
         style={{
-          userSelect: isDragging ? "none" : "auto",
-          WebkitUserSelect: isDragging ? "none" : "auto",
-          cursor: isDragging ? "grabbing" : "default",
+          backgroundImage: "url('/route66.avif')",
+          backgroundBlendMode: "overlay",
+          zIndex: 0,
+        }}
+      />
+      {/* Header - natural flow, above motorcycle */}
+      <div className="relative text-center px-8 pt-16 pb-6" style={{ zIndex: 40 }}>
+        <div className="text-[#c19a6b] text-[9px] font-semibold tracking-[0.35em] uppercase mb-8 opacity-80">
+          HERITAGE Motors · Est. 1952
+        </div>
+        <h1
+          className="font-bold text-white mb-6 px-4 leading-[0.85]"
+          style={{
+            fontFamily: fontFamily,
+            fontSize: "clamp(3.5rem, 9vw, 8rem)",
+            letterSpacing: "-0.04em",
+            textShadow: `
+              0 1px 0 rgba(193, 154, 107, 0.3),
+              0 2px 0 rgba(26, 47, 74, 0.9),
+              0 3px 0 rgba(26, 47, 74, 0.8),
+              0 4px 0 rgba(26, 47, 74, 0.7),
+              0 5px 0 rgba(26, 47, 74, 0.6),
+              0 6px 0 rgba(26, 47, 74, 0.5),
+              0 7px 0 rgba(26, 47, 74, 0.4),
+              0 8px 0 rgba(26, 47, 74, 0.3),
+              0 12px 24px rgba(0, 0, 0, 0.5),
+              0 16px 32px rgba(0, 0, 0, 0.3)
+            `,
+            fontWeight: 900,
+            transform: "translateZ(0)",
+          }}
+        >
+          {article.title}
+        </h1>
+        {article.subtitle && (
+          <p
+            className="text-[#faf9f6]/80 italic px-4 max-w-3xl mx-auto mb-6"
+            style={{
+              fontFamily: fontFamily,
+              fontSize: "clamp(1.1rem, 2.2vw, 1.75rem)",
+              lineHeight: "1.5",
+              textShadow: "0 4px 16px rgba(26, 47, 74, 0.6)",
+              fontWeight: 400,
+            }}
+          >
+            {article.subtitle}
+          </p>
+        )}
+        <div className="flex items-center justify-center gap-4 text-[11px] text-[#faf9f6]/50 tracking-[0.25em] font-medium">
+          {article.author && <span>BY {article.author.toUpperCase()}</span>}
+          <span className="text-[#c19a6b] opacity-70">·</span>
+          {article.date && <span>{article.date.toUpperCase()}</span>}
+        </div>
+      </div>
+
+      {/* Content area - sibling to header, natural flow */}
+      <div
+        ref={contentRef}
+        className="relative"
+        style={{
+          minHeight: `${contentHeight}px`,
+          paddingBottom: "100px",
         }}
       >
-        {/* Header */}
-        <div
-          className="absolute left-0 right-0 text-center"
-          style={{
-            top: `${GUTTER}px`,
-            zIndex: 2,
-          }}
-        >
-          <div className="text-[#c19a6b] text-xs font-semibold tracking-widest uppercase mb-3">
-            HERITAGE Motors
+        {/* Drop cap */}
+        {contentLeft >= 0 && (
+          <div
+            className="absolute font-bold text-[#c19a6b] pointer-events-none leading-none"
+            style={{
+              left: `${contentLeft}px`,
+              top: 0,
+              fontSize: "84px",
+              zIndex: 15,
+              textShadow: "0 2px 20px rgba(193, 154, 107, 0.3)",
+            }}
+          >
+            {article.content[0]}
           </div>
-          <h1 className="text-4xl font-bold text-white mb-2 px-4">
-            {article.title}
-          </h1>
-        </div>
+        )}
 
-        {/* Drop cap - first letter */}
-        <div
-          className="absolute font-bold text-[#c19a6b] pointer-events-none"
-          style={{
-            left: `${contentLeft}px`,
-            top: `${CONTENT_TOP}px`,
-            fontSize: "72px",
-            lineHeight: "72px",
-            zIndex: 2,
-          }}
-        >
-          {article.content[0]}
-        </div>
-
-        {/* Text lines */}
+        {/* Body text - improved typography */}
         {lines.map((line, index) => (
           <span
             key={index}
@@ -203,49 +300,60 @@ export function ArticleLayout() {
               fontFamily: fontFamily,
               color: "#faf9f6",
               userSelect: "text",
-              WebkitUserSelect: "text",
-              zIndex: 1,
+              zIndex: 5,
+              textShadow: "0 2px 8px rgba(0,0,0,0.2)",
+              fontWeight: 400,
+              letterSpacing: "0.01em",
             }}
           >
             {line.text}
           </span>
         ))}
 
-        {/* Motorcycle orb */}
+        {/* Motorcycle - draggable, fixed positioning to prevent clipping */}
         {motorcyclePos && (
-          <div
-            className="absolute rounded-full"
+          <img
+            src="/image-Photoroom.png"
+            alt="Heritage Motorcycle"
+            className="fixed transition-opacity duration-200"
+            draggable={false}
+            onPointerDown={handleMotorcyclePointerDown}
+            onPointerMove={handleMotorcyclePointerMove}
+            onPointerUp={handleMotorcyclePointerUp}
             style={{
               left: `${motorcyclePos.x}px`,
               top: `${motorcyclePos.y}px`,
               width: `${motorcyclePos.width}px`,
               height: `${motorcyclePos.height}px`,
               cursor: isDragging ? "grabbing" : "grab",
-              background: `radial-gradient(ellipse at 35% 35%, rgba(196, 163, 90, 0.35), rgba(196, 163, 90, 0.12) 55%, transparent 72%)`,
-              boxShadow: `0 0 60px 15px rgba(196, 163, 90, 0.18), 0 0 120px 40px rgba(196, 163, 90, 0.07)`,
-              zIndex: 10,
+              filter: isDragging
+                ? "brightness(1.1) drop-shadow(0 10px 30px rgba(196, 163, 90, 0.4))"
+                : "drop-shadow(0 5px 20px rgba(0, 0, 0, 0.3))",
+              zIndex: 30,
               pointerEvents: "auto",
+              opacity: isDragging ? 0.95 : 1,
+              touchAction: "none",
             }}
           />
         )}
-
-        {/* Hint */}
-        <div
-          className="fixed top-4 left-1/2 -translate-x-1/2 text-xs text-white/20 bg-black/40 px-4 py-2 rounded-full pointer-events-none"
-          style={{ zIndex: 100 }}
-        >
-          Drag the orb · Zero DOM reads
-        </div>
-
-        {/* Footer */}
-        <div
-          className="fixed bottom-4 left-0 right-0 text-center text-xs text-[#faf9f6]/40 pointer-events-none"
-          style={{ zIndex: 100 }}
-        >
-          <p>© 2026 HERITAGE Motors · Crafted with precision</p>
-        </div>
       </div>
-    </>
+
+      {/* Hint - top right corner */}
+      <div
+        className="fixed top-6 right-6 text-[10px] text-white/20 bg-black/20 px-4 py-2 rounded-full pointer-events-none backdrop-blur-sm border border-white/10"
+        style={{ zIndex: 100 }}
+      >
+        Drag the motorcycle
+      </div>
+
+      {/* Footer */}
+      <div
+        className="fixed bottom-6 left-0 right-0 text-center text-[10px] text-[#faf9f6]/30 pointer-events-none tracking-wider"
+        style={{ zIndex: 100 }}
+      >
+        <p>© 2026 HERITAGE MOTORS · CRAFTED WITH PRECISION</p>
+      </div>
+    </div>
   )
 }
 
