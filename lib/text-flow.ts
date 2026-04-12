@@ -28,28 +28,40 @@ const H_PAD = 20
 const V_PAD = 8
 
 /**
- * Check if a line's vertical band intersects with the obstacle
+ * Calculate the horizontal interval blocked by a circular obstacle for a given vertical band
+ * This is the exact algorithm from the demo (circleIntervalForBand)
  */
-function getObstacleInterval(
-  obstacleX: number,
-  obstacleY: number,
-  obstacleWidth: number,
-  obstacleHeight: number,
-  lineTop: number,
-  lineBottom: number,
+function getCircleIntervalForBand(
+  cx: number,
+  cy: number,
+  r: number,
+  bandTop: number,
+  bandBottom: number,
+  hPad: number,
+  vPad: number,
 ): Interval | null {
-  const top = lineTop - V_PAD
-  const bottom = lineBottom + V_PAD
+  const top = bandTop - vPad
+  const bottom = bandBottom + vPad
   
-  // No intersection if line is above or below obstacle
-  if (top >= obstacleY + obstacleHeight || bottom <= obstacleY) {
+  // Check if band is completely above or below circle
+  if (top >= cy + r || bottom <= cy - r) {
     return null
   }
   
-  // Return blocked horizontal interval
+  // Calculate minimum distance from circle center to the band
+  const minDy = cy >= top && cy <= bottom ? 0 : cy < top ? top - cy : cy - bottom
+  
+  // If minimum distance is greater than radius, no intersection
+  if (minDy >= r) {
+    return null
+  }
+  
+  // Calculate maximum horizontal distance using Pythagorean theorem
+  const maxDx = Math.sqrt(r * r - minDy * minDy)
+  
   return {
-    left: obstacleX - H_PAD,
-    right: obstacleX + obstacleWidth + H_PAD,
+    left: cx - maxDx - hPad,
+    right: cx + maxDx + hPad,
   }
 }
 
@@ -99,20 +111,27 @@ export function layoutTextWithObstacle(
   const lines: TextLine[] = []
   let cursor: LayoutCursor = { segmentIndex: 0, graphemeIndex: 0 }
   let lineTop = startY
+  let textExhausted = false
   
-  while (true) {
+  while (!textExhausted) {
     const lineBottom = lineTop + lineHeight
     const blocked: Interval[] = []
     
     // Check if motorcycle blocks this line
     if (motorcyclePos) {
-      const interval = getObstacleInterval(
-        motorcyclePos.x,
-        motorcyclePos.y,
-        motorcyclePos.width,
-        motorcyclePos.height,
+      // Treat the motorcycle as a circle with center and radius
+      const cx = motorcyclePos.x + motorcyclePos.width / 2
+      const cy = motorcyclePos.y + motorcyclePos.height / 2
+      const r = Math.max(motorcyclePos.width, motorcyclePos.height) / 2
+      
+      const interval = getCircleIntervalForBand(
+        cx,
+        cy,
+        r,
         lineTop,
-        lineBottom
+        lineBottom,
+        H_PAD,
+        V_PAD
       )
       if (interval) {
         blocked.push(interval)
@@ -125,34 +144,37 @@ export function layoutTextWithObstacle(
       blocked
     )
     
-    // If no slots available, skip this line
+    // If no slots available, skip this line (but don't break - text continues below)
     if (slots.length === 0) {
       lineTop += lineHeight
       continue
     }
     
-    // Use the widest slot (demo uses leftmost, but widest is better for readability)
-    const bestSlot = slots.reduce((best, slot) => {
-      const bestWidth = best.right - best.left
+    // Sort slots left to right (demo's approach)
+    const orderedSlots = [...slots].sort((a, b) => a.left - b.left)
+    
+    // Fill all available slots on this line
+    for (const slot of orderedSlots) {
       const slotWidth = slot.right - slot.left
-      return slotWidth > bestWidth ? slot : best
-    })
+      
+      // Layout next line in this slot
+      const line = layoutNextLine(prepared, cursor, slotWidth)
+      
+      if (line === null) {
+        textExhausted = true
+        break
+      }
+      
+      lines.push({
+        text: line.text,
+        width: line.width,
+        x: slot.left,
+        y: lineTop,
+      })
+      
+      cursor = line.end
+    }
     
-    const slotWidth = bestSlot.right - bestSlot.left
-    
-    // Layout next line in this slot
-    const line = layoutNextLine(prepared, cursor, slotWidth)
-    
-    if (line === null) break
-    
-    lines.push({
-      text: line.text,
-      width: line.width,
-      x: bestSlot.left,
-      y: lineTop,
-    })
-    
-    cursor = line.end
     lineTop += lineHeight
   }
   
