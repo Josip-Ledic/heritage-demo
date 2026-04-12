@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useRef, useCallback } from "react"
+import { useEffect, useState, useRef } from "react"
 import { prepareWithSegments } from "@chenglou/pretext"
 import { article } from "@/lib/article-data"
 import {
@@ -12,21 +12,24 @@ import {
 
 export function ArticleLayout() {
   const [lines, setLines] = useState<TextLine[]>([])
-  const [containerWidth, setContainerWidth] = useState(0)
   const [motorcyclePos, setMotorcyclePos] = useState<MotorcyclePosition | null>(null)
   const [isDragging, setIsDragging] = useState(false)
   const [dragStart, setDragStart] = useState<{ x: number; y: number } | null>(null)
   const [motorcycleStart, setMotorcycleStart] = useState<{ x: number; y: number } | null>(null)
+  const [contentLeft, setContentLeft] = useState(0)
   
-  const containerRef = useRef<HTMLDivElement>(null)
+  const stageRef = useRef<HTMLDivElement>(null)
   const preparedTextRef = useRef<ReturnType<typeof prepareWithSegments> | null>(null)
 
   // Font configuration
   const fontSize = 18
-  const lineHeight = 36
+  const lineHeight = 30
   const fontFamily = "Crimson Text"
   const font = `${fontSize}px '${fontFamily}'`
-  const headerHeight = 300
+  
+  // Layout constants
+  const GUTTER = 80
+  const CONTENT_TOP = 180
 
   // Prepare text once
   useEffect(() => {
@@ -37,241 +40,212 @@ export function ArticleLayout() {
     }
   }, [font])
 
-  // Calculate layout
-  const calculateLayout = useCallback(() => {
-    if (!preparedTextRef.current || containerWidth === 0) return
-
-    const layoutLines = layoutTextWithObstacle(
-      preparedTextRef.current,
-      containerWidth,
-      lineHeight,
-      headerHeight,
-      motorcyclePos
-    )
-
-    setLines(layoutLines)
-  }, [containerWidth, lineHeight, headerHeight, motorcyclePos])
-
-  // Initialize motorcycle position
+  // Layout calculation
   useEffect(() => {
-    if (containerWidth > 0 && !motorcyclePos) {
-      const motorcycleWidth = containerWidth * 0.45
-      const motorcycleHeight = motorcycleWidth * 0.5
-      
-      setMotorcyclePos({
-        x: containerWidth - motorcycleWidth,
-        y: headerHeight + containerWidth * 0.15,
-        width: motorcycleWidth,
-        height: motorcycleHeight,
-      })
-    }
-  }, [containerWidth, motorcyclePos, headerHeight])
+    if (!preparedTextRef.current || !stageRef.current || typeof window === 'undefined') return
 
-  // Measure container
-  useEffect(() => {
-    const updateWidth = () => {
-      if (containerRef.current) {
-        const rect = containerRef.current.getBoundingClientRect()
-        setContainerWidth(rect.width)
+    const updateLayout = () => {
+      const pageWidth = window.innerWidth
+      const pageHeight = window.innerHeight
+      const contentWidth = Math.min(pageWidth - GUTTER * 2, 900)
+      const calculatedContentLeft = (pageWidth - contentWidth) / 2
+      setContentLeft(calculatedContentLeft)
+
+      // Initialize motorcycle on first layout
+      if (!motorcyclePos) {
+        const motorcycleWidth = Math.min(contentWidth * 0.3, 200)
+        const motorcycleHeight = motorcycleWidth * 0.6
+        
+        setMotorcyclePos({
+          x: calculatedContentLeft + contentWidth - motorcycleWidth - 40,
+          y: CONTENT_TOP + 80,
+          width: motorcycleWidth,
+          height: motorcycleHeight,
+        })
+        return
       }
+
+      // Layout text with obstacle
+      const layoutLines = layoutTextWithObstacle(
+        preparedTextRef.current!,
+        contentWidth,
+        lineHeight,
+        CONTENT_TOP,
+        motorcyclePos ? {
+          ...motorcyclePos,
+          x: motorcyclePos.x - calculatedContentLeft, // Convert to content-relative
+        } : null
+      )
+
+      // Convert back to page coordinates
+      const pageLines = layoutLines.map(line => ({
+        ...line,
+        x: line.x + calculatedContentLeft,
+      }))
+
+      setLines(pageLines)
     }
 
-    updateWidth()
+    updateLayout()
 
-    let timeoutId: NodeJS.Timeout
-    const handleResize = () => {
-      clearTimeout(timeoutId)
-      timeoutId = setTimeout(updateWidth, 250)
-    }
-
+    const handleResize = () => updateLayout()
     window.addEventListener("resize", handleResize)
-    return () => {
-      window.removeEventListener("resize", handleResize)
-      clearTimeout(timeoutId)
-    }
-  }, [])
+    return () => window.removeEventListener("resize", handleResize)
+  }, [motorcyclePos, CONTENT_TOP, GUTTER])
 
-  // Recalculate layout
+  // Pointer handlers
   useEffect(() => {
-    if (containerWidth > 0 && preparedTextRef.current) {
-      calculateLayout()
-    }
-  }, [containerWidth, calculateLayout])
+    const stage = stageRef.current
+    if (!stage) return
 
-  // Drag handlers
-  const handlePointerDown = useCallback(
-    (e: React.PointerEvent) => {
+    const handlePointerDown = (e: PointerEvent) => {
       if (!motorcyclePos) return
 
-      const rect = containerRef.current?.getBoundingClientRect()
-      if (!rect) return
-
-      const x = e.clientX - rect.left
-      const y = e.clientY - rect.top
+      const x = e.clientX
+      const y = e.clientY
 
       if (hitTestMotorcycle(x, y, motorcyclePos)) {
         e.preventDefault()
         setIsDragging(true)
-        setDragStart({ x: e.clientX, y: e.clientY })
+        setDragStart({ x, y })
         setMotorcycleStart({ x: motorcyclePos.x, y: motorcyclePos.y })
-        ;(e.target as HTMLElement).setPointerCapture(e.pointerId)
+        stage.setPointerCapture(e.pointerId)
       }
-    },
-    [motorcyclePos]
-  )
+    }
 
-  const handlePointerMove = useCallback(
-    (e: React.PointerEvent) => {
+    const handlePointerMove = (e: PointerEvent) => {
       if (!isDragging || !dragStart || !motorcycleStart || !motorcyclePos) return
 
       const dx = e.clientX - dragStart.x
       const dy = e.clientY - dragStart.y
 
-      const newX = Math.max(
-        0,
-        Math.min(containerWidth - motorcyclePos.width, motorcycleStart.x + dx)
-      )
-      const newY = Math.max(headerHeight, motorcycleStart.y + dy)
-
       setMotorcyclePos({
         ...motorcyclePos,
-        x: newX,
-        y: newY,
+        x: motorcycleStart.x + dx,
+        y: motorcycleStart.y + dy,
       })
-    },
-    [isDragging, dragStart, motorcycleStart, motorcyclePos, containerWidth, headerHeight]
-  )
+    }
 
-  const handlePointerUp = useCallback(
-    (e: React.PointerEvent) => {
+    const handlePointerUp = (e: PointerEvent) => {
       if (isDragging) {
         setIsDragging(false)
         setDragStart(null)
         setMotorcycleStart(null)
-        ;(e.target as HTMLElement).releasePointerCapture(e.pointerId)
+        stage.releasePointerCapture(e.pointerId)
       }
-    },
-    [isDragging]
-  )
+    }
+
+    stage.addEventListener("pointerdown", handlePointerDown)
+    window.addEventListener("pointermove", handlePointerMove)
+    window.addEventListener("pointerup", handlePointerUp)
+    window.addEventListener("pointercancel", handlePointerUp)
+
+    return () => {
+      stage.removeEventListener("pointerdown", handlePointerDown)
+      window.removeEventListener("pointermove", handlePointerMove)
+      window.removeEventListener("pointerup", handlePointerUp)
+      window.removeEventListener("pointercancel", handlePointerUp)
+    }
+  }, [isDragging, dragStart, motorcycleStart, motorcyclePos])
 
   return (
-    <div className="min-h-screen bg-[#1e3a5f] text-[#faf9f6]">
-      <article className="max-w-[1400px] mx-auto px-16 py-24">
+    <>
+      {/* Full-screen stage like the demo */}
+      <div
+        ref={stageRef}
+        className="fixed inset-0 overflow-hidden bg-[#1e3a5f]"
+        style={{
+          userSelect: isDragging ? "none" : "auto",
+          WebkitUserSelect: isDragging ? "none" : "auto",
+          cursor: isDragging ? "grabbing" : "default",
+        }}
+      >
         {/* Header */}
-        <header className="mb-16 max-w-2xl">
-          <div className="text-[#c19a6b] text-sm font-semibold tracking-wider uppercase mb-4">
+        <div
+          className="absolute left-0 right-0 text-center"
+          style={{
+            top: `${GUTTER}px`,
+            zIndex: 2,
+          }}
+        >
+          <div className="text-[#c19a6b] text-xs font-semibold tracking-widest uppercase mb-3">
             HERITAGE Motors
           </div>
-          <h1 className="text-5xl md:text-6xl font-bold mb-4 leading-tight">
+          <h1 className="text-4xl font-bold text-white mb-2 px-4">
             {article.title}
           </h1>
-          {article.subtitle && (
-            <p className="text-xl text-[#faf9f6]/80 mb-6">{article.subtitle}</p>
-          )}
-          <div className="flex gap-6 text-sm text-[#faf9f6]/60">
-            {article.author && <div>By {article.author}</div>}
-            {article.date && <div>{article.date}</div>}
-          </div>
-        </header>
+        </div>
 
-        {/* Content */}
+        {/* Drop cap - first letter */}
         <div
-          ref={containerRef}
-          className="relative touch-none"
-          onPointerDown={handlePointerDown}
-          onPointerMove={handlePointerMove}
-          onPointerUp={handlePointerUp}
-          onPointerCancel={handlePointerUp}
-          style={{ cursor: isDragging ? "grabbing" : "default" }}
+          className="absolute font-bold text-[#c19a6b] pointer-events-none"
+          style={{
+            left: `${contentLeft}px`,
+            top: `${CONTENT_TOP}px`,
+            fontSize: "72px",
+            lineHeight: "72px",
+            zIndex: 2,
+          }}
         >
-          {/* Motorcycle - Desktop */}
-          {motorcyclePos && (
-            <div
-              className="hidden lg:block absolute z-10"
-              style={{
-                left: `${motorcyclePos.x}px`,
-                top: `${motorcyclePos.y}px`,
-                width: `${motorcyclePos.width}px`,
-                height: `${motorcyclePos.height}px`,
-                cursor: isDragging ? "grabbing" : "grab",
-              }}
-            >
-              <svg viewBox="0 0 800 400" fill="none" className="w-full h-full" style={{ pointerEvents: "none" }}>
-                <g fill="#c19a6b">
-                  <circle cx="200" cy="300" r="80" />
-                  <circle cx="200" cy="300" r="50" fill="#1e3a5f" />
-                  <circle cx="600" cy="300" r="80" />
-                  <circle cx="600" cy="300" r="50" fill="#1e3a5f" />
-                  <path d="M 200 300 L 250 250 L 300 200 L 400 180 L 500 200 L 550 250 L 600 300" strokeWidth="25" stroke="#c19a6b" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-                  <ellipse cx="320" cy="200" rx="80" ry="30" />
-                  <path d="M 350 200 Q 420 160 480 190 Q 490 200 480 210 Q 420 230 350 210 Z" />
-                  <rect x="540" y="220" width="60" height="15" rx="7" />
-                  <path d="M 560 235 L 600 300" strokeWidth="20" stroke="#c19a6b" strokeLinecap="round" />
-                  <path d="M 250 250 L 200 300" strokeWidth="18" stroke="#c19a6b" strokeLinecap="round" />
-                  <ellipse cx="280" cy="320" rx="60" ry="12" />
-                  <rect x="220" y="308" width="60" height="24" rx="12" />
-                  <path d="M 480 190 Q 520 140 540 180 L 520 200 Q 500 180 480 190 Z" opacity="0.6" />
-                </g>
-              </svg>
-            </div>
-          )}
+          {article.content[0]}
+        </div>
 
-          {/* Text - Desktop with flow */}
-          {lines.length > 0 && (
-            <div className="hidden lg:block">
-              {lines.map((line, index) => (
-                <div
-                  key={index}
-                  style={{
-                    height: `${lineHeight}px`,
-                    lineHeight: `${lineHeight}px`,
-                    fontSize: `${fontSize}px`,
-                    pointerEvents: "none",
-                    userSelect: "none",
-                  }}
-                  className="whitespace-pre-wrap"
-                >
-                  {line.text}
-                </div>
-              ))}
-            </div>
-          )}
+        {/* Text lines */}
+        {lines.map((line, index) => (
+          <span
+            key={index}
+            className="absolute whitespace-pre"
+            style={{
+              left: `${line.x}px`,
+              top: `${line.y}px`,
+              fontSize: `${fontSize}px`,
+              lineHeight: `${lineHeight}px`,
+              fontFamily: fontFamily,
+              color: "#faf9f6",
+              userSelect: "text",
+              WebkitUserSelect: "text",
+              zIndex: 1,
+            }}
+          >
+            {line.text}
+          </span>
+        ))}
 
-          {/* Mobile fallback */}
-          <div className="lg:hidden prose prose-lg prose-invert max-w-none">
-            <div className="mb-8">
-              <svg viewBox="0 0 800 400" fill="none" className="w-full h-auto max-w-md mx-auto">
-                <g fill="#c19a6b">
-                  <circle cx="200" cy="300" r="80" />
-                  <circle cx="200" cy="300" r="50" fill="#1e3a5f" />
-                  <circle cx="600" cy="300" r="80" />
-                  <circle cx="600" cy="300" r="50" fill="#1e3a5f" />
-                  <path d="M 200 300 L 250 250 L 300 200 L 400 180 L 500 200 L 550 250 L 600 300" strokeWidth="25" stroke="#c19a6b" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-                  <ellipse cx="320" cy="200" rx="80" ry="30" />
-                  <path d="M 350 200 Q 420 160 480 190 Q 490 200 480 210 Q 420 230 350 210 Z" />
-                  <rect x="540" y="220" width="60" height="15" rx="7" />
-                  <path d="M 560 235 L 600 300" strokeWidth="20" stroke="#c19a6b" strokeLinecap="round" />
-                  <path d="M 250 250 L 200 300" strokeWidth="18" stroke="#c19a6b" strokeLinecap="round" />
-                  <ellipse cx="280" cy="320" rx="60" ry="12" />
-                  <rect x="220" y="308" width="60" height="24" rx="12" />
-                  <path d="M 480 190 Q 520 140 540 180 L 520 200 Q 500 180 480 190 Z" opacity="0.6" />
-                </g>
-              </svg>
-            </div>
-            <div className="whitespace-pre-wrap leading-relaxed">{article.content}</div>
-          </div>
+        {/* Motorcycle orb */}
+        {motorcyclePos && (
+          <div
+            className="absolute rounded-full"
+            style={{
+              left: `${motorcyclePos.x}px`,
+              top: `${motorcyclePos.y}px`,
+              width: `${motorcyclePos.width}px`,
+              height: `${motorcyclePos.height}px`,
+              cursor: isDragging ? "grabbing" : "grab",
+              background: `radial-gradient(ellipse at 35% 35%, rgba(196, 163, 90, 0.35), rgba(196, 163, 90, 0.12) 55%, transparent 72%)`,
+              boxShadow: `0 0 60px 15px rgba(196, 163, 90, 0.18), 0 0 120px 40px rgba(196, 163, 90, 0.07)`,
+              zIndex: 10,
+              pointerEvents: "auto",
+            }}
+          />
+        )}
+
+        {/* Hint */}
+        <div
+          className="fixed top-4 left-1/2 -translate-x-1/2 text-xs text-white/20 bg-black/40 px-4 py-2 rounded-full pointer-events-none"
+          style={{ zIndex: 100 }}
+        >
+          Drag the orb · Zero DOM reads
         </div>
 
         {/* Footer */}
-        <footer className="mt-24 pt-12 border-t border-[#c19a6b]/20">
-          <div className="text-center text-sm text-[#faf9f6]/60">
-            <p className="mb-2">© 2026 HERITAGE Motors. All rights reserved.</p>
-            <p className="text-[#c19a6b]">Crafted with precision. Ridden with passion.</p>
-            <p className="mt-4 text-xs opacity-50">💡 Drag the motorcycle to see text reflow in real-time</p>
-          </div>
-        </footer>
-      </article>
-    </div>
+        <div
+          className="fixed bottom-4 left-0 right-0 text-center text-xs text-[#faf9f6]/40 pointer-events-none"
+          style={{ zIndex: 100 }}
+        >
+          <p>© 2026 HERITAGE Motors · Crafted with precision</p>
+        </div>
+      </div>
+    </>
   )
 }
 
