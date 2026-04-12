@@ -1,16 +1,14 @@
 import {
-  prepareWithSegments,
-  layoutNextLineRange,
-  materializeLineRange,
+  layoutNextLine,
   type PreparedTextWithSegments,
   type LayoutCursor,
-  type LayoutLineRange,
 } from "@chenglou/pretext"
 
 export interface TextLine {
   text: string
   width: number
-  lineIndex: number
+  x: number
+  y: number
 }
 
 export interface MotorcyclePosition {
@@ -20,9 +18,17 @@ export interface MotorcyclePosition {
   height: number
 }
 
+type Interval = {
+  left: number
+  right: number
+}
+
+const MIN_SLOT_WIDTH = 50
+const H_PAD = 20
+const V_PAD = 8
+
 /**
- * Calculate the horizontal interval blocked by a circular/rectangular obstacle
- * for a given vertical band (line of text)
+ * Check if a line's vertical band intersects with the obstacle
  */
 function getObstacleInterval(
   obstacleX: number,
@@ -31,85 +37,57 @@ function getObstacleInterval(
   obstacleHeight: number,
   lineTop: number,
   lineBottom: number,
-  hPad: number = 40,
-  vPad: number = 10
-): { left: number; right: number } | null {
-  const top = lineTop - vPad
-  const bottom = lineBottom + vPad
+): Interval | null {
+  const top = lineTop - V_PAD
+  const bottom = lineBottom + V_PAD
   
-  // Check if line intersects with obstacle vertically
+  // No intersection if line is above or below obstacle
   if (top >= obstacleY + obstacleHeight || bottom <= obstacleY) {
     return null
   }
   
-  // Return the horizontal interval blocked by the obstacle
+  // Return blocked horizontal interval
   return {
-    left: obstacleX - hPad,
-    right: obstacleX + obstacleWidth + hPad,
+    left: obstacleX - H_PAD,
+    right: obstacleX + obstacleWidth + H_PAD,
   }
 }
 
 /**
- * Calculate available text width for a line, accounting for motorcycle position
- * 
- * @param lineIndex - The line number (0-based)
- * @param lineTop - Top Y position of the line
- * @param baseWidth - The full container width
- * @param lineHeight - Height of each line in pixels
- * @param motorcyclePos - Current motorcycle position and dimensions
- * @returns Available width for text on this line
+ * Carve available text slots from base interval, subtracting blocked intervals
+ * This is the core algorithm from the demo
  */
-export function getLineWidthWithObstacle(
-  lineIndex: number,
-  lineTop: number,
-  baseWidth: number,
-  lineHeight: number,
-  motorcyclePos: MotorcyclePosition | null
-): number {
-  if (!motorcyclePos) {
-    return baseWidth
+function carveTextLineSlots(base: Interval, blocked: Interval[]): Interval[] {
+  let slots = [base]
+  
+  for (const interval of blocked) {
+    const next: Interval[] = []
+    
+    for (const slot of slots) {
+      // Slot doesn't intersect with blocked interval
+      if (interval.right <= slot.left || interval.left >= slot.right) {
+        next.push(slot)
+        continue
+      }
+      
+      // Carve out the blocked part
+      if (interval.left > slot.left) {
+        next.push({ left: slot.left, right: interval.left })
+      }
+      if (interval.right < slot.right) {
+        next.push({ left: interval.right, right: slot.right })
+      }
+    }
+    
+    slots = next
   }
   
-  const lineBottom = lineTop + lineHeight
-  
-  // Check if this line intersects with the motorcycle
-  const interval = getObstacleInterval(
-    motorcyclePos.x,
-    motorcyclePos.y,
-    motorcyclePos.width,
-    motorcyclePos.height,
-    lineTop,
-    lineBottom
-  )
-  
-  if (!interval) {
-    // No intersection - full width available
-    return baseWidth
-  }
-  
-  // Calculate available width on the left side of the motorcycle
-  const leftWidth = Math.max(0, interval.left)
-  
-  // Calculate available width on the right side
-  const rightWidth = Math.max(0, baseWidth - interval.right)
-  
-  // Use the larger available space
-  const availableWidth = Math.max(leftWidth, rightWidth)
-  
-  // Ensure minimum width for readability
-  const minWidth = baseWidth * 0.3
-  return Math.max(availableWidth, minWidth)
+  // Filter out slots that are too narrow
+  return slots.filter(slot => slot.right - slot.left >= MIN_SLOT_WIDTH)
 }
 
 /**
- * Layout text with dynamic line widths using Pretext, accounting for motorcycle position
- * 
- * @param prepared - Prepared text from prepareWithSegments
- * @param baseWidth - Container width
- * @param lineHeight - Line height in pixels
- * @param startY - Starting Y position for text
- * @param motorcyclePos - Current motorcycle position
- * @returns Array of text lines with their content and widths
+ * Layout text with obstacle avoidance using the demo's algorithm
  */
 export function layoutTextWithObstacle(
   prepared: PreparedTextWithSegments,
@@ -119,54 +97,70 @@ export function layoutTextWithObstacle(
   motorcyclePos: MotorcyclePosition | null
 ): TextLine[] {
   const lines: TextLine[] = []
-  let cursor: LayoutCursor | null = { segmentIndex: 0, graphemeIndex: 0 }
-  let lineIndex = 0
+  let cursor: LayoutCursor = { segmentIndex: 0, graphemeIndex: 0 }
+  let lineTop = startY
   
-  // Iterate through lines with varying widths
-  while (cursor !== null) {
-    const lineTop = startY + lineIndex * lineHeight
-    const maxWidth = getLineWidthWithObstacle(
-      lineIndex,
-      lineTop,
-      baseWidth,
-      lineHeight,
-      motorcyclePos
+  while (true) {
+    const lineBottom = lineTop + lineHeight
+    const blocked: Interval[] = []
+    
+    // Check if motorcycle blocks this line
+    if (motorcyclePos) {
+      const interval = getObstacleInterval(
+        motorcyclePos.x,
+        motorcyclePos.y,
+        motorcyclePos.width,
+        motorcyclePos.height,
+        lineTop,
+        lineBottom
+      )
+      if (interval) {
+        blocked.push(interval)
+      }
+    }
+    
+    // Carve out available slots
+    const slots = carveTextLineSlots(
+      { left: 0, right: baseWidth },
+      blocked
     )
     
-    // Get the next line range
-    const range: LayoutLineRange | null = layoutNextLineRange(
-      prepared,
-      cursor,
-      maxWidth
-    )
+    // If no slots available, skip this line
+    if (slots.length === 0) {
+      lineTop += lineHeight
+      continue
+    }
     
-    if (range === null) break
+    // Use the widest slot (demo uses leftmost, but widest is better for readability)
+    const bestSlot = slots.reduce((best, slot) => {
+      const bestWidth = best.right - best.left
+      const slotWidth = slot.right - slot.left
+      return slotWidth > bestWidth ? slot : best
+    })
     
-    // Materialize the line to get the actual text
-    const line = materializeLineRange(prepared, range)
+    const slotWidth = bestSlot.right - bestSlot.left
+    
+    // Layout next line in this slot
+    const line = layoutNextLine(prepared, cursor, slotWidth)
+    
+    if (line === null) break
     
     lines.push({
       text: line.text,
       width: line.width,
-      lineIndex,
+      x: bestSlot.left,
+      y: lineTop,
     })
     
-    cursor = range.end
-    lineIndex++
+    cursor = line.end
+    lineTop += lineHeight
   }
   
   return lines
 }
 
 /**
- * Calculate the total height needed for the text layout
- */
-export function calculateTextHeight(lineCount: number, lineHeight: number): number {
-  return lineCount * lineHeight
-}
-
-/**
- * Hit test to check if a point is inside the motorcycle bounds
+ * Hit test for dragging
  */
 export function hitTestMotorcycle(
   x: number,
