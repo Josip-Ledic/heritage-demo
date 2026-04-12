@@ -13,109 +13,125 @@ export interface TextLine {
   lineIndex: number
 }
 
+export interface MotorcyclePosition {
+  x: number
+  y: number
+  width: number
+  height: number
+}
+
 /**
- * Defines the motorcycle silhouette shape by returning available text width
- * for each line. The motorcycle is positioned on the right side, so we return
- * the width available on the LEFT side of the motorcycle.
- * 
- * @param lineIndex - The line number (0-based)
- * @param baseWidth - The full container width
- * @param lineHeight - Height of each line in pixels
- * @returns Available width for text on this line
+ * Calculate the horizontal interval blocked by a circular/rectangular obstacle
+ * for a given vertical band (line of text)
  */
-export function getLineWidth(
-  lineIndex: number,
-  baseWidth: number,
-  lineHeight: number
-): number {
-  // Calculate vertical position
-  const y = lineIndex * lineHeight
+function getObstacleInterval(
+  obstacleX: number,
+  obstacleY: number,
+  obstacleWidth: number,
+  obstacleHeight: number,
+  lineTop: number,
+  lineBottom: number,
+  hPad: number = 40,
+  vPad: number = 10
+): { left: number; right: number } | null {
+  const top = lineTop - vPad
+  const bottom = lineBottom + vPad
   
-  // Motorcycle dimensions (based on SVG viewBox and positioning)
-  // The motorcycle is 45% of container width, positioned on the right
-  const motorcycleWidth = baseWidth * 0.45
-  const motorcycleStartX = baseWidth - motorcycleWidth
-  
-  // Motorcycle vertical positioning (starts at 25% from top, ~400px tall in viewBox)
-  const motorcycleTopY = baseWidth * 0.25 // Approximate based on container
-  const motorcycleBottomY = motorcycleTopY + (motorcycleWidth * 0.5) // Aspect ratio adjustment
-  
-  // Define the motorcycle shape profile (left edge at different heights)
-  // These values represent how far the motorcycle extends into the text area
-  const getMotorcycleIntrusion = (yPos: number): number => {
-    if (yPos < motorcycleTopY) {
-      // Above motorcycle - full width available
-      return 0
-    } else if (yPos > motorcycleBottomY) {
-      // Below motorcycle - full width available
-      return 0
-    } else {
-      // Beside motorcycle - calculate intrusion based on shape
-      const relativeY = (yPos - motorcycleTopY) / (motorcycleBottomY - motorcycleTopY)
-      
-      // Create a curved profile (wider in the middle, narrower at top/bottom)
-      // This approximates a motorcycle silhouette
-      let intrusion: number
-      
-      if (relativeY < 0.2) {
-        // Top section (handlebars/windscreen) - moderate intrusion
-        intrusion = motorcycleWidth * 0.6
-      } else if (relativeY < 0.4) {
-        // Upper-middle (tank/seat) - maximum intrusion
-        intrusion = motorcycleWidth * 0.75
-      } else if (relativeY < 0.7) {
-        // Middle (body/frame) - significant intrusion
-        intrusion = motorcycleWidth * 0.7
-      } else if (relativeY < 0.85) {
-        // Lower section (wheels) - maximum intrusion
-        intrusion = motorcycleWidth * 0.8
-      } else {
-        // Bottom (exhaust) - moderate intrusion
-        intrusion = motorcycleWidth * 0.5
-      }
-      
-      return intrusion
-    }
+  // Check if line intersects with obstacle vertically
+  if (top >= obstacleY + obstacleHeight || bottom <= obstacleY) {
+    return null
   }
   
-  const intrusion = getMotorcycleIntrusion(y)
+  // Return the horizontal interval blocked by the obstacle
+  return {
+    left: obstacleX - hPad,
+    right: obstacleX + obstacleWidth + hPad,
+  }
+}
+
+/**
+ * Calculate available text width for a line, accounting for motorcycle position
+ * 
+ * @param lineIndex - The line number (0-based)
+ * @param lineTop - Top Y position of the line
+ * @param baseWidth - The full container width
+ * @param lineHeight - Height of each line in pixels
+ * @param motorcyclePos - Current motorcycle position and dimensions
+ * @returns Available width for text on this line
+ */
+export function getLineWidthWithObstacle(
+  lineIndex: number,
+  lineTop: number,
+  baseWidth: number,
+  lineHeight: number,
+  motorcyclePos: MotorcyclePosition | null
+): number {
+  if (!motorcyclePos) {
+    return baseWidth
+  }
   
-  // Add comfortable spacing (breathing room)
-  const spacing = 40 // pixels of spacing between text and motorcycle
+  const lineBottom = lineTop + lineHeight
   
-  // Calculate available width
-  const availableWidth = baseWidth - intrusion - spacing
+  // Check if this line intersects with the motorcycle
+  const interval = getObstacleInterval(
+    motorcyclePos.x,
+    motorcyclePos.y,
+    motorcyclePos.width,
+    motorcyclePos.height,
+    lineTop,
+    lineBottom
+  )
+  
+  if (!interval) {
+    // No intersection - full width available
+    return baseWidth
+  }
+  
+  // Calculate available width on the left side of the motorcycle
+  const leftWidth = Math.max(0, interval.left)
+  
+  // Calculate available width on the right side
+  const rightWidth = Math.max(0, baseWidth - interval.right)
+  
+  // Use the larger available space
+  const availableWidth = Math.max(leftWidth, rightWidth)
   
   // Ensure minimum width for readability
-  const minWidth = baseWidth * 0.4
+  const minWidth = baseWidth * 0.3
   return Math.max(availableWidth, minWidth)
 }
 
 /**
- * Layout text with dynamic line widths using Pretext
+ * Layout text with dynamic line widths using Pretext, accounting for motorcycle position
  * 
- * @param text - The article text to layout
- * @param font - Font string (e.g., "18px 'Crimson Text'")
+ * @param prepared - Prepared text from prepareWithSegments
  * @param baseWidth - Container width
  * @param lineHeight - Line height in pixels
+ * @param startY - Starting Y position for text
+ * @param motorcyclePos - Current motorcycle position
  * @returns Array of text lines with their content and widths
  */
-export function layoutTextWithFlow(
-  text: string,
-  font: string,
+export function layoutTextWithObstacle(
+  prepared: PreparedTextWithSegments,
   baseWidth: number,
-  lineHeight: number
+  lineHeight: number,
+  startY: number,
+  motorcyclePos: MotorcyclePosition | null
 ): TextLine[] {
-  // Prepare the text once (expensive operation)
-  const prepared = prepareWithSegments(text, font, { whiteSpace: "normal" })
-  
   const lines: TextLine[] = []
   let cursor: LayoutCursor | null = { segmentIndex: 0, graphemeIndex: 0 }
   let lineIndex = 0
   
   // Iterate through lines with varying widths
   while (cursor !== null) {
-    const maxWidth = getLineWidth(lineIndex, baseWidth, lineHeight)
+    const lineTop = startY + lineIndex * lineHeight
+    const maxWidth = getLineWidthWithObstacle(
+      lineIndex,
+      lineTop,
+      baseWidth,
+      lineHeight,
+      motorcyclePos
+    )
     
     // Get the next line range
     const range: LayoutLineRange | null = layoutNextLineRange(
@@ -147,6 +163,22 @@ export function layoutTextWithFlow(
  */
 export function calculateTextHeight(lineCount: number, lineHeight: number): number {
   return lineCount * lineHeight
+}
+
+/**
+ * Hit test to check if a point is inside the motorcycle bounds
+ */
+export function hitTestMotorcycle(
+  x: number,
+  y: number,
+  motorcyclePos: MotorcyclePosition
+): boolean {
+  return (
+    x >= motorcyclePos.x &&
+    x <= motorcyclePos.x + motorcyclePos.width &&
+    y >= motorcyclePos.y &&
+    y <= motorcyclePos.y + motorcyclePos.height
+  )
 }
 
 // Made with Bob
