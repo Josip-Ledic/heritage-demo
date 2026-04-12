@@ -16,7 +16,7 @@ export interface Article {
 export const article: Article = {
   title: "Legacy of Innovation",
   subtitle: "Where Heritage Meets the Future of Motorcycling",
-  author: "Marcus Steele",
+  author: "Josip Ledić",
   date: "April 2026",
   content: `In the world of premium motorcycles, few names carry the weight of tradition and innovation quite like HERITAGE Motors. For over seven decades, we have stood at the intersection of timeless craftsmanship and cutting-edge engineering, creating machines that are not merely vehicles, but rolling testaments to the art of motorcycle design.
 
