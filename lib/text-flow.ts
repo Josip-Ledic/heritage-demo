@@ -25,6 +25,14 @@ export interface RectObstacle {
   height: number
 }
 
+export interface ImageObstacle {
+  x: number
+  y: number
+  width: number
+  height: number
+  imageData?: ImageData // Optional: for alpha-channel based flow
+}
+
 type Interval = {
   left: number
   right: number
@@ -108,8 +116,70 @@ function carveTextLineSlots(base: Interval, blocked: Interval[]): Interval[] {
 }
 
 /**
+ * Get horizontal interval blocked by an image obstacle at a specific Y position
+ * Samples the alpha channel to find the actual shape bounds
+ */
+function getImageIntervalForBand(
+  imageObstacle: ImageObstacle,
+  lineTop: number,
+  lineBottom: number,
+  hPad: number,
+  vPad: number,
+): Interval | null {
+  const top = lineTop - vPad
+  const bottom = lineBottom + vPad
+  
+  // Check if line intersects with image vertically
+  if (bottom <= imageObstacle.y || top >= imageObstacle.y + imageObstacle.height) {
+    return null
+  }
+  
+  // If no image data, fall back to rectangular bounds
+  if (!imageObstacle.imageData) {
+    return {
+      left: imageObstacle.x - hPad,
+      right: imageObstacle.x + imageObstacle.width + hPad,
+    }
+  }
+  
+  // Sample the alpha channel at the line's Y position
+  const relativeY = Math.floor(((lineTop + lineBottom) / 2 - imageObstacle.y) / imageObstacle.height * imageObstacle.imageData.height)
+  
+  if (relativeY < 0 || relativeY >= imageObstacle.imageData.height) {
+    return null
+  }
+  
+  // Find leftmost and rightmost opaque pixels in this row
+  let leftmost = imageObstacle.imageData.width
+  let rightmost = 0
+  const alphaThreshold = 30 // Pixels with alpha > 30 are considered opaque
+  
+  for (let x = 0; x < imageObstacle.imageData.width; x++) {
+    const pixelIndex = (relativeY * imageObstacle.imageData.width + x) * 4
+    const alpha = imageObstacle.imageData.data[pixelIndex + 3]
+    
+    if (alpha > alphaThreshold) {
+      if (x < leftmost) leftmost = x
+      if (x > rightmost) rightmost = x
+    }
+  }
+  
+  // No opaque pixels found in this row
+  if (leftmost > rightmost) {
+    return null
+  }
+  
+  // Convert image coordinates to page coordinates
+  const scaleX = imageObstacle.width / imageObstacle.imageData.width
+  const left = imageObstacle.x + leftmost * scaleX - hPad
+  const right = imageObstacle.x + (rightmost + 1) * scaleX + hPad
+  
+  return { left, right }
+}
+
+/**
  * Layout text with obstacle avoidance using the demo's algorithm
- * Supports both circular obstacles (orb) and rectangular obstacles (pull quotes)
+ * Supports circular obstacles, rectangular obstacles, and image-based obstacles
  */
 export function layoutTextWithObstacle(
   prepared: PreparedTextWithSegments,
@@ -117,7 +187,8 @@ export function layoutTextWithObstacle(
   lineHeight: number,
   startY: number,
   motorcyclePos: MotorcyclePosition | null,
-  rectObstacles: RectObstacle[] = []
+  rectObstacles: RectObstacle[] = [],
+  imageObstacle: ImageObstacle | null = null
 ): TextLine[] {
   const lines: TextLine[] = []
   let cursor: LayoutCursor = { segmentIndex: 0, graphemeIndex: 0 }
@@ -128,8 +199,21 @@ export function layoutTextWithObstacle(
     const lineBottom = lineTop + lineHeight
     const blocked: Interval[] = []
     
-    // Check if motorcycle blocks this line
-    if (motorcyclePos) {
+    // Check if image obstacle blocks this line (takes precedence over circle)
+    if (imageObstacle) {
+      const interval = getImageIntervalForBand(
+        imageObstacle,
+        lineTop,
+        lineBottom,
+        H_PAD,
+        V_PAD
+      )
+      if (interval) {
+        blocked.push(interval)
+      }
+    }
+    // Fallback to circular obstacle if no image obstacle
+    else if (motorcyclePos) {
       // Treat the motorcycle as a circle with center and radius
       const cx = motorcyclePos.x + motorcyclePos.width / 2
       const cy = motorcyclePos.y + motorcyclePos.height / 2
