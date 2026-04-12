@@ -18,6 +18,13 @@ export interface MotorcyclePosition {
   height: number
 }
 
+export interface RectObstacle {
+  x: number
+  y: number
+  width: number
+  height: number
+}
+
 type Interval = {
   left: number
   right: number
@@ -26,6 +33,8 @@ type Interval = {
 const MIN_SLOT_WIDTH = 50
 const H_PAD = 20
 const V_PAD = 8
+const RECT_H_PAD = 15
+const RECT_V_PAD = 10
 
 /**
  * Calculate the horizontal interval blocked by a circular obstacle for a given vertical band
@@ -100,13 +109,15 @@ function carveTextLineSlots(base: Interval, blocked: Interval[]): Interval[] {
 
 /**
  * Layout text with obstacle avoidance using the demo's algorithm
+ * Supports both circular obstacles (orb) and rectangular obstacles (pull quotes)
  */
 export function layoutTextWithObstacle(
   prepared: PreparedTextWithSegments,
   baseWidth: number,
   lineHeight: number,
   startY: number,
-  motorcyclePos: MotorcyclePosition | null
+  motorcyclePos: MotorcyclePosition | null,
+  rectObstacles: RectObstacle[] = []
 ): TextLine[] {
   const lines: TextLine[] = []
   let cursor: LayoutCursor = { segmentIndex: 0, graphemeIndex: 0 }
@@ -135,6 +146,20 @@ export function layoutTextWithObstacle(
       )
       if (interval) {
         blocked.push(interval)
+      }
+    }
+    
+    // Check if any rectangular obstacles block this line
+    for (const rect of rectObstacles) {
+      const top = lineTop - RECT_V_PAD
+      const bottom = lineBottom + RECT_V_PAD
+      
+      // Check vertical intersection
+      if (bottom > rect.y && top < rect.y + rect.height) {
+        blocked.push({
+          left: rect.x - RECT_H_PAD,
+          right: rect.x + rect.width + RECT_H_PAD,
+        })
       }
     }
     

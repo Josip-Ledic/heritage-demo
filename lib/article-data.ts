@@ -1,9 +1,16 @@
+export interface PullQuote {
+  text: string
+  yPosition: number // Percentage of content height (0-1)
+  side: 'left' | 'right'
+}
+
 export interface Article {
   title: string
   subtitle?: string
   author?: string
   date?: string
   content: string
+  pullQuotes: PullQuote[]
 }
 
 export const article: Article = {
@@ -30,6 +37,23 @@ Our commitment to innovation extends beyond the motorcycles themselves. We have 
 Looking to the future, we see endless possibilities. Electric powertrains that deliver instant torque while maintaining the character that defines a HERITAGE motorcycle. Advanced rider assistance systems that enhance safety without diminishing the joy of riding. New materials and manufacturing techniques that allow us to create even more beautiful and capable machines. But through all of these changes, one thing remains constant: our unwavering commitment to craftsmanship, quality, and the pure joy of motorcycling.
 
 This is the legacy of HERITAGE Motors. This is what it means to build not just motorcycles, but legends. This is why, when you choose a HERITAGE motorcycle, you are not simply purchasing a vehicle—you are becoming part of a story that spans generations, a tradition of excellence that continues to evolve and inspire. Welcome to the family.`,
+  pullQuotes: [
+    {
+      text: "A motorcycle is more than the sum of its parts. It is an extension of the rider's spirit.",
+      yPosition: 0.15,
+      side: 'right',
+    },
+    {
+      text: "True heritage is not about clinging to the past, but about building upon it.",
+      yPosition: 0.45,
+      side: 'left',
+    },
+    {
+      text: "When you choose a HERITAGE motorcycle, you become part of a story that spans generations.",
+      yPosition: 0.75,
+      side: 'right',
+    },
+  ],
 }
 
 // Made with Bob
