@@ -90,9 +90,9 @@ done
 
 # Return to original branch
 echo -e "${YELLOW}Returning to branch ${CURRENT_BRANCH}...${NC}"
-git reset --hard HEAD
-git clean -fd
+git stash --quiet
 git checkout "$CURRENT_BRANCH" --quiet
+git stash pop --quiet 2>/dev/null || true
 
 # Create landing page
 echo -e "${BLUE}========================================${NC}"
