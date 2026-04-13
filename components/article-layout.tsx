@@ -12,12 +12,12 @@ import {
 } from "@/lib/text-flow"
 
 // Helper to get the correct asset path
-// For production: prepend /heritage-demo, for dev: use as-is
+// For production: prepend /heritage-demo (repo root), for dev: use as-is
 const getAssetPath = (path: string) => {
-  // During SSR/build, use environment variable
+  // During SSR/build, use asset prefix (points to repo root where assets are copied)
   if (typeof window === 'undefined') {
-    const basePath = process.env.NEXT_PUBLIC_BASE_PATH || ''
-    return `${basePath}${path}`
+    const assetPrefix = process.env.NEXT_PUBLIC_ASSET_PREFIX || ''
+    return `${assetPrefix}${path}`
   }
   // In browser, check if we're on GitHub Pages
   if (window.location.hostname.includes('github.io')) {

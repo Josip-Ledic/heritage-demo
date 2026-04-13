@@ -107,6 +107,8 @@ NEXTCONFIG
   
   # Set the base path for this commit
   export NEXT_PUBLIC_BASE_PATH="${BASE_PATH_PREFIX}/commit-$i"
+  # Set asset path to repo root (where assets are copied)
+  export NEXT_PUBLIC_ASSET_PREFIX="${BASE_PATH_PREFIX}"
   
   # Build the project
   echo -e "${YELLOW}Building Next.js project...${NC}"
