@@ -14,8 +14,13 @@ import {
 // Helper to get the correct asset path
 // For production: prepend /heritage-demo, for dev: use as-is
 const getAssetPath = (path: string) => {
-  // Check if we're in production (GitHub Pages)
-  if (typeof window !== 'undefined' && window.location.hostname.includes('github.io')) {
+  // During SSR/build, use environment variable
+  if (typeof window === 'undefined') {
+    const basePath = process.env.NEXT_PUBLIC_BASE_PATH || ''
+    return `${basePath}${path}`
+  }
+  // In browser, check if we're on GitHub Pages
+  if (window.location.hostname.includes('github.io')) {
     return `/heritage-demo${path}`
   }
   return path
