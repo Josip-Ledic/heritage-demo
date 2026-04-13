@@ -11,7 +11,17 @@ import {
   type RectObstacle,
 } from "@/lib/text-flow"
 
-const BIKE_IMAGES = ["/bike1.png", "/bike2.png", "/bike3.png"]
+// Helper to get the correct asset path with basePath
+const getAssetPath = (path: string) => {
+  const basePath = process.env.NEXT_PUBLIC_BASE_PATH || ''
+  return `${basePath}${path}`
+}
+
+const BIKE_IMAGES = [
+  getAssetPath("/bike1.png"),
+  getAssetPath("/bike2.png"),
+  getAssetPath("/bike3.png")
+]
 
 type SidebarStyle = {
   position: 'absolute' | 'fixed';
@@ -63,7 +73,7 @@ export function ArticleLayout() {
   // Load motorcycle image and extract alpha channel
   useEffect(() => {
     const img = new Image()
-    img.src = "/bike1.png"
+    img.src = getAssetPath("/bike1.png")
     img.onload = () => {
       const canvas = document.createElement('canvas')
       canvas.width = img.naturalWidth
@@ -94,7 +104,7 @@ export function ArticleLayout() {
     }
 
     // Initialize audio
-    audioRef.current = new Audio("/revvingsound.mp3")
+    audioRef.current = new Audio(getAssetPath("/revvingsound.mp3"))
 
     return () => {
       if (animationIntervalRef.current) {
@@ -313,7 +323,7 @@ export function ArticleLayout() {
       <div
         className="fixed inset-0 bg-cover bg-center bg-no-repeat"
         style={{
-          backgroundImage: "url('/route66.avif')",
+          backgroundImage: `url('${getAssetPath("/route66.avif")}')`,
           backgroundBlendMode: "overlay",
           zIndex: 0,
           opacity: 0.25,
