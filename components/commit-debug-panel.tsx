@@ -35,14 +35,17 @@ export function CommitDebugPanel() {
   const [isExpanded, setIsExpanded] = useState(true)
   const [currentCommit, setCurrentCommit] = useState<number>(getInitialCommit)
   const [mounted, setMounted] = useState(false)
+  const [isGitHubPages, setIsGitHubPages] = useState(false)
   
   // Only render on client side after mount
   useEffect(() => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     setMounted(true)
+    // Only show on GitHub Pages (production)
+    setIsGitHubPages(window.location.hostname.includes('github.io'))
   }, [])
   
-  if (!mounted) {
+  if (!mounted || !isGitHubPages) {
     return null
   }
 

@@ -56,6 +56,7 @@ export function ArticleLayout() {
   })
   const [currentBikeIndex, setCurrentBikeIndex] = useState(0)
   const [isRevving, setIsRevving] = useState(false)
+  const [scrollProgress, setScrollProgress] = useState(0)
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const animationIntervalRef = useRef<NodeJS.Timeout | null>(null)
 
@@ -132,6 +133,22 @@ export function ArticleLayout() {
     window.addEventListener("keydown", handleKeyPress)
     return () => window.removeEventListener("keydown", handleKeyPress)
   }, [isRevving])
+
+  // Scroll progress tracking
+  useEffect(() => {
+    const handleScroll = () => {
+      const windowHeight = window.innerHeight
+      const documentHeight = document.documentElement.scrollHeight
+      const scrollTop = window.scrollY
+      const scrollableHeight = documentHeight - windowHeight
+      const progress = scrollableHeight > 0 ? scrollTop / scrollableHeight : 0
+      setScrollProgress(progress)
+    }
+
+    window.addEventListener('scroll', handleScroll)
+    handleScroll() // Initial call
+    return () => window.removeEventListener('scroll', handleScroll)
+  }, [])
 
   const revEngine = () => {
     setIsRevving(true)
@@ -324,15 +341,15 @@ export function ArticleLayout() {
         `,
       }}
     >
-      {/* Animated background */}
+      {/* Animated background with scroll-based effects */}
       <div
-        className="fixed inset-0 bg-cover bg-center bg-no-repeat"
+        className="fixed inset-0 bg-cover bg-center bg-no-repeat transition-all duration-500"
         style={{
           backgroundImage: `url('${getAssetPath('/route66.avif')}')`,
           backgroundBlendMode: "overlay",
           zIndex: 0,
-          opacity: 0.25,
-          filter: "blur(1px) brightness(0.9) contrast(1.1)",
+          opacity: 0.15 + (scrollProgress * 0.45), // Increases from 0.15 to 0.60 as you scroll
+          filter: `blur(${3 - (scrollProgress * 3)}px) brightness(${0.8 + (scrollProgress * 0.3)}) contrast(${1.0 + (scrollProgress * 0.3)})`,
         }}
       />
 
@@ -524,10 +541,14 @@ export function ArticleLayout() {
         Drag the motorcycle
       </div>
 
-      {/* Footer */}
+      {/* Footer - appears only at bottom */}
       <div
-        className="fixed bottom-6 left-0 right-0 text-center text-[10px] text-[#faf9f6]/30 pointer-events-none tracking-wider"
-        style={{ zIndex: 100 }}
+        className="fixed bottom-6 left-0 right-0 text-center text-[10px] text-[#faf9f6]/30 pointer-events-none tracking-wider transition-all duration-500"
+        style={{
+          zIndex: 100,
+          opacity: scrollProgress > 0.9 ? 1 : 0,
+          transform: scrollProgress > 0.9 ? 'translateY(0)' : 'translateY(20px)'
+        }}
       >
         <p>© 2026 HERITAGE MOTORS · CRAFTED WITH PRECISION</p>
       </div>
