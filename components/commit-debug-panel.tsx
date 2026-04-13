@@ -21,6 +21,7 @@ const COMMITS: CommitInfo[] = [
   { number: 9, hash: '56f5342', message: 'eight' },
   { number: 10, hash: '154e484', message: 'nineth' },
   { number: 11, hash: '98324c9', message: 'tenth' },
+  { number: 12, hash: '4ce593b', message: 'eleventh' },
 ]
 
 function getInitialCommit(): number {

@@ -20,16 +20,18 @@ BASE_PATH_PREFIX="/${REPO_NAME}"
 
 # Commit information (hash and message)
 declare -A COMMITS=(
-  [1]="e5282b6:first"
-  [2]="7b0b909:second"
-  [3]="f49c679:third"
-  [4]="581aae7:fourth"
-  [5]="ad734ba:fifth"
-  [6]="276e75e:sixth"
-  [7]="d78194d:seventh"
-  [8]="56f5342:eight"
-  [9]="154e484:nineth"
-  [10]="98324c9:tenth"
+  [1]="a45d6df:initial"
+  [2]="e5282b6:first"
+  [3]="7b0b909:second"
+  [4]="f49c679:third"
+  [5]="581aae7:fourth"
+  [6]="ad734ba:fifth"
+  [7]="276e75e:sixth"
+  [8]="d78194d:seventh"
+  [9]="56f5342:eight"
+  [10]="154e484:nineth"
+  [11]="98324c9:tenth"
+  [12]="4ce593b:eleventh"
 )
 
 echo -e "${BLUE}========================================${NC}"
@@ -48,7 +50,7 @@ rm -rf "$DIST_DIR"
 mkdir -p "$DIST_DIR"
 
 # Build each commit
-for i in {1..10}; do
+for i in {1..12}; do
   COMMIT_INFO="${COMMITS[$i]}"
   COMMIT_HASH="${COMMIT_INFO%%:*}"
   COMMIT_MSG="${COMMIT_INFO#*:}"
@@ -162,7 +164,7 @@ cat > "$DIST_DIR/index.html" << 'EOF'
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta http-equiv="refresh" content="0; url=./commit-10/">
+  <meta http-equiv="refresh" content="0; url=./commit-12/">
   <title>HERITAGE Motors - Redirecting...</title>
   <style>
     * {
