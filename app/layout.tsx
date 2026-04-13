@@ -2,6 +2,7 @@ import { Playfair_Display, Inter, Geist_Mono } from "next/font/google"
 
 import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
+import { CommitDebugPanel } from "@/components/commit-debug-panel"
 import { cn } from "@/lib/utils";
 
 const playfairDisplay = Playfair_Display({
@@ -39,7 +40,10 @@ export default function RootLayout({
             )}
     >
       <body className="font-sans">
-        <ThemeProvider>{children}</ThemeProvider>
+        <ThemeProvider>
+          {children}
+          <CommitDebugPanel />
+        </ThemeProvider>
       </body>
     </html>
   )
