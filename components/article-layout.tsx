@@ -380,7 +380,23 @@ export function ArticleLayout() {
           </p>
         )}
         <div className="flex items-center justify-center gap-4 text-[12px] text-[#faf9f6]/50 tracking-[0.25em] font-medium" style={{ fontFamily: "'Space Mono'" }}>
-          {article.author && <span>BY {article.author.toUpperCase()}</span>}
+          {article.author && (
+            <span className="flex items-center gap-2">
+              {article.author.toUpperCase()} &
+              <img
+                src="/bob.png"
+                alt="Bob"
+                className="inline-block"
+                style={{
+                  width: '16px',
+                  height: '16px',
+                  filter: 'grayscale(100%) brightness(1.2)',
+                  opacity: 0.5
+                }}
+              />
+              IBM BOB
+            </span>
+          )}
           <span className="text-[#c19a6b] opacity-70">·</span>
           {article.date && <span>{article.date.toUpperCase()}</span>}
         </div>
