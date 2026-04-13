@@ -121,51 +121,17 @@ NEXTCONFIG
     if [ -d "out" ] && [ "$(ls -A out)" ]; then
       cp -r out/* "$DIST_DIR/commit-$i/"
       
-      # Fix asset paths in HTML and JS files - replace /asset with /heritage-demo/asset
-      echo -e "${YELLOW}Fixing asset paths in HTML and JS files...${NC}"
-      
-      # Fix HTML files
-      find "$DIST_DIR/commit-$i" -name "*.html" -type f -exec sed -i.bak \
-        -e "s|url('/route66\.avif')|url('/heritage-demo/route66.avif')|g" \
-        -e "s|url(\&\#x27;/route66\.avif\&\#x27;)|url(\&\#x27;/heritage-demo/route66.avif\&\#x27;)|g" \
-        -e 's|src="/bike1\.png"|src="/heritage-demo/bike1.png"|g' \
-        -e 's|src="/bike2\.png"|src="/heritage-demo/bike2.png"|g' \
-        -e 's|src="/bike3\.png"|src="/heritage-demo/bike3.png"|g' \
-        -e 's|src="/bob\.png"|src="/heritage-demo/bob.png"|g' \
-        -e 's|src="/image-Photoroom\.png"|src="/heritage-demo/bike1.png"|g' \
-        -e 's|"/revvingsound\.mp3"|"/heritage-demo/revvingsound.mp3"|g' \
-        {} \;
-      
-      # Fix JavaScript files
-      find "$DIST_DIR/commit-$i" -name "*.js" -type f -exec sed -i.bak \
-        -e 's|"/bike1\.png"|"/heritage-demo/bike1.png"|g' \
-        -e 's|"/bike2\.png"|"/heritage-demo/bike2.png"|g' \
-        -e 's|"/bike3\.png"|"/heritage-demo/bike3.png"|g' \
-        -e 's|"/bob\.png"|"/heritage-demo/bob.png"|g' \
-        -e 's|"/image-Photoroom\.png"|"/heritage-demo/bike1.png"|g' \
-        -e 's|"/route66\.avif"|"/heritage-demo/route66.avif"|g' \
-        -e 's|"/revvingsound\.mp3"|"/heritage-demo/revvingsound.mp3"|g' \
-        -e "s|'/bike1\.png'|'/heritage-demo/bike1.png'|g" \
-        -e "s|'/bike2\.png'|'/heritage-demo/bike2.png'|g" \
-        -e "s|'/bike3\.png'|'/heritage-demo/bike3.png'|g" \
-        -e "s|'/bob\.png'|'/heritage-demo/bob.png'|g" \
-        -e "s|'/image-Photoroom\.png'|'/heritage-demo/bike1.png'|g" \
-        -e "s|'/route66\.avif'|'/heritage-demo/route66.avif'|g" \
-        -e "s|'/revvingsound\.mp3'|'/heritage-demo/revvingsound.mp3'|g" \
-        {} \;
-      
-      # Remove backup files
-      find "$DIST_DIR/commit-$i" -name "*.bak" -type f -delete
-      
-      # Copy public assets to root of dist directory as workaround for asset path issues
+      # Copy public assets to root of dist directory
+      # Next.js basePath/assetPrefix handles the /heritage-demo prefix automatically
       echo -e "${YELLOW}Copying public assets to root...${NC}"
       if [ -d "public" ]; then
-        # Copy image and audio files to root
+        # Copy all asset files to root (images, audio, 3D models, etc.)
         cp -f public/*.png "$DIST_DIR/" 2>/dev/null || true
         cp -f public/*.avif "$DIST_DIR/" 2>/dev/null || true
         cp -f public/*.mp3 "$DIST_DIR/" 2>/dev/null || true
         cp -f public/*.jpg "$DIST_DIR/" 2>/dev/null || true
         cp -f public/*.jpeg "$DIST_DIR/" 2>/dev/null || true
+        cp -f public/*.glb "$DIST_DIR/" 2>/dev/null || true
       fi
     else
       echo -e "${RED}✗ Error: out directory is empty or doesn't exist${NC}"
