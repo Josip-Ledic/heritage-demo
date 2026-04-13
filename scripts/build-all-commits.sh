@@ -122,8 +122,10 @@ NEXTCONFIG
     if [ -d "out" ] && [ "$(ls -A out)" ]; then
       cp -r out/* "$DIST_DIR/commit-$i/"
       
-      # Fix asset paths in HTML files - replace /asset with /heritage-demo/asset
-      echo -e "${YELLOW}Fixing asset paths in HTML files...${NC}"
+      # Fix asset paths in HTML and JS files - replace /asset with /heritage-demo/asset
+      echo -e "${YELLOW}Fixing asset paths in HTML and JS files...${NC}"
+      
+      # Fix HTML files
       find "$DIST_DIR/commit-$i" -name "*.html" -type f -exec sed -i.bak \
         -e "s|url('/route66\.avif')|url('/heritage-demo/route66.avif')|g" \
         -e "s|url(\&\#x27;/route66\.avif\&\#x27;)|url(\&\#x27;/heritage-demo/route66.avif\&\#x27;)|g" \
@@ -133,6 +135,23 @@ NEXTCONFIG
         -e 's|src="/bob\.png"|src="/heritage-demo/bob.png"|g' \
         -e 's|"/revvingsound\.mp3"|"/heritage-demo/revvingsound.mp3"|g' \
         {} \;
+      
+      # Fix JavaScript files
+      find "$DIST_DIR/commit-$i" -name "*.js" -type f -exec sed -i.bak \
+        -e 's|"/bike1\.png"|"/heritage-demo/bike1.png"|g' \
+        -e 's|"/bike2\.png"|"/heritage-demo/bike2.png"|g' \
+        -e 's|"/bike3\.png"|"/heritage-demo/bike3.png"|g' \
+        -e 's|"/bob\.png"|"/heritage-demo/bob.png"|g' \
+        -e 's|"/route66\.avif"|"/heritage-demo/route66.avif"|g' \
+        -e 's|"/revvingsound\.mp3"|"/heritage-demo/revvingsound.mp3"|g' \
+        -e "s|'/bike1\.png'|'/heritage-demo/bike1.png'|g" \
+        -e "s|'/bike2\.png'|'/heritage-demo/bike2.png'|g" \
+        -e "s|'/bike3\.png'|'/heritage-demo/bike3.png'|g" \
+        -e "s|'/bob\.png'|'/heritage-demo/bob.png'|g" \
+        -e "s|'/route66\.avif'|'/heritage-demo/route66.avif'|g" \
+        -e "s|'/revvingsound\.mp3'|'/heritage-demo/revvingsound.mp3'|g" \
+        {} \;
+      
       # Remove backup files
       find "$DIST_DIR/commit-$i" -name "*.bak" -type f -delete
       
