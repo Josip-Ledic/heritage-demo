@@ -11,6 +11,8 @@ import {
   type RectObstacle,
 } from "@/lib/text-flow"
 
+const BIKE_IMAGES = ["/bike1.png", "/bike2.png", "/bike3.png"]
+
 type SidebarStyle = {
   position: 'absolute' | 'fixed';
   top: string;
@@ -37,6 +39,10 @@ export function ArticleLayout() {
     top: `${SIDEBAR_TOP_OFFSET}px`,
     width: `${SIDEBAR_WIDTH}px`
   })
+  const [currentBikeIndex, setCurrentBikeIndex] = useState(0)
+  const [isRevving, setIsRevving] = useState(false)
+  const audioRef = useRef<HTMLAudioElement | null>(null)
+  const animationIntervalRef = useRef<NodeJS.Timeout | null>(null)
 
   const contentRef = useRef<HTMLDivElement>(null)
   const preparedTextRef = useRef<ReturnType<typeof prepareWithSegments> | null>(null)
@@ -86,7 +92,59 @@ export function ArticleLayout() {
         }
       }
     }
+
+    // Initialize audio
+    audioRef.current = new Audio("/revvingsound.mp3")
+
+    return () => {
+      if (animationIntervalRef.current) {
+        clearInterval(animationIntervalRef.current)
+      }
+    }
   }, [])
+
+  // Spacebar handler for revving engine
+  useEffect(() => {
+    const handleKeyPress = (event: KeyboardEvent) => {
+      if (event.code === "Space") {
+        event.preventDefault()
+        if (!isRevving) {
+          revEngine()
+        }
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyPress)
+    return () => window.removeEventListener("keydown", handleKeyPress)
+  }, [isRevving])
+
+  const revEngine = () => {
+    setIsRevving(true)
+    
+    // Play the revving sound
+    if (audioRef.current) {
+      audioRef.current.currentTime = 0
+      audioRef.current.play()
+    }
+
+    // Animate through the images with a smoother, more polished sequence
+    let frameIndex = 0
+    // Longer sequence with more gradual transitions for a polished look
+    const frames = [0, 1, 2, 2, 1, 0, 1, 2, 1, 0, 1, 2, 2, 1, 0, 0]
+    
+    animationIntervalRef.current = setInterval(() => {
+      if (frameIndex < frames.length) {
+        setCurrentBikeIndex(frames[frameIndex])
+        frameIndex++
+      } else {
+        if (animationIntervalRef.current) {
+          clearInterval(animationIntervalRef.current)
+        }
+        setCurrentBikeIndex(0)
+        setIsRevving(false)
+      }
+    }, 60) // Faster frame rate (60ms) for smoother animation
+  }
 
   // Sidebar sticky behavior
   useEffect(() => {
@@ -400,9 +458,9 @@ export function ArticleLayout() {
         {/* Motorcycle - draggable, fixed positioning to prevent clipping */}
         {motorcyclePos && (
           <img
-            src="/bike1.png"
+            src={BIKE_IMAGES[currentBikeIndex]}
             alt="Heritage Motorcycle"
-            className="fixed transition-opacity duration-200"
+            className="fixed"
             draggable={false}
             onPointerDown={handleMotorcyclePointerDown}
             onPointerMove={handleMotorcyclePointerMove}
@@ -420,7 +478,8 @@ export function ArticleLayout() {
                           pointerEvents: "auto",
                           opacity: isDragging ? 0.98 : 1,
                           touchAction: "none",
-                          transition: "filter 0.3s ease, opacity 0.2s ease",
+                          transition: "filter 0.3s ease, opacity 0.15s ease-in-out, transform 0.05s ease-out",
+                          transform: isRevving ? "scale(1.002)" : "scale(1)",
                         }}
           />
         )}
