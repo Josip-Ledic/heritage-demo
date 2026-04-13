@@ -16,6 +16,7 @@ NC='\033[0m' # No Color
 # Configuration
 DIST_DIR="dist"
 REPO_NAME="heritage-demo"
+BASE_PATH_PREFIX="/${REPO_NAME}"
 
 # Commit information (hash and message)
 declare -A COMMITS=(
@@ -70,7 +71,7 @@ for i in {1..11}; do
   fi
   
   # Set the base path for this commit
-  export NEXT_PUBLIC_BASE_PATH="/commit-$i"
+  export NEXT_PUBLIC_BASE_PATH="${BASE_PATH_PREFIX}/commit-$i"
   
   # Build the project
   echo -e "${YELLOW}Building Next.js project...${NC}"

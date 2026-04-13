@@ -147,7 +147,10 @@ export function CommitDebugPanel() {
         {/* Home Link */}
         <div className="pt-2 border-t border-[#c19a6b]/30">
           <button
-            onClick={() => { window.location.href = '/' }}
+            onClick={() => {
+              const baseUrl = window.location.origin + window.location.pathname.split('/commit-')[0]
+              window.location.href = baseUrl
+            }}
             className="block w-full text-center text-sm text-[#c19a6b] hover:text-[#faf9f6] transition-colors"
           >
             ← Back to Landing Page
