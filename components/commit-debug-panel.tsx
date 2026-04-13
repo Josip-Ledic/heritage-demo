@@ -37,10 +37,14 @@ export function CommitDebugPanel() {
   
   // Only render on client side after mount
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     setMounted(true)
   }, [])
   
-  if (!mounted) {
+  // Check if we're in a commit directory (production deployment)
+  const isProduction = mounted && typeof window !== 'undefined' && window.location.pathname.includes('/commit-')
+  
+  if (!mounted || !isProduction) {
     return null
   }
 

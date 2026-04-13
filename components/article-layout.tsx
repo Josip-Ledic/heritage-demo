@@ -11,21 +11,6 @@ import {
   type RectObstacle,
 } from "@/lib/text-flow"
 
-// Helper to get the correct asset path with basePath at runtime
-const getAssetPath = (path: string) => {
-  // In browser, extract basePath from current URL
-  if (typeof window !== 'undefined') {
-    const pathname = window.location.pathname
-    // Match /heritage-demo/commit-10/ and extract /heritage-demo/commit-10
-    const match = pathname.match(/^(\/[^\/]+\/commit-\d+)/)
-    const basePath = match ? match[1] : ''
-    return `${basePath}${path}`
-  }
-  // During SSR/build, use environment variable
-  const basePath = process.env.NEXT_PUBLIC_BASE_PATH || ''
-  return `${basePath}${path}`
-}
-
 const BIKE_IMAGES = ["/bike1.png", "/bike2.png", "/bike3.png"]
 
 type SidebarStyle = {
@@ -78,7 +63,7 @@ export function ArticleLayout() {
   // Load motorcycle image and extract alpha channel
   useEffect(() => {
     const img = new Image()
-    img.src = getAssetPath(BIKE_IMAGES[0])
+    img.src = BIKE_IMAGES[0]
     img.onload = () => {
       const canvas = document.createElement('canvas')
       canvas.width = img.naturalWidth
@@ -109,7 +94,7 @@ export function ArticleLayout() {
     }
 
     // Initialize audio
-    audioRef.current = new Audio(getAssetPath("/revvingsound.mp3"))
+    audioRef.current = new Audio("/revvingsound.mp3")
 
     return () => {
       if (animationIntervalRef.current) {
@@ -328,7 +313,7 @@ export function ArticleLayout() {
       <div
         className="fixed inset-0 bg-cover bg-center bg-no-repeat"
         style={{
-          backgroundImage: `url('${getAssetPath("/route66.avif")}')`,
+          backgroundImage: `url('/route66.avif')`,
           backgroundBlendMode: "overlay",
           zIndex: 0,
           opacity: 0.25,
@@ -473,7 +458,7 @@ export function ArticleLayout() {
         {/* Motorcycle - draggable, fixed positioning to prevent clipping */}
         {motorcyclePos && (
           <img
-            src={getAssetPath(BIKE_IMAGES[currentBikeIndex])}
+            src={BIKE_IMAGES[currentBikeIndex]}
             alt="Heritage Motorcycle"
             className="fixed"
             draggable={false}
