@@ -61,8 +61,9 @@ for i in {1..12}; do
   echo -e "${YELLOW}Message: ${COMMIT_MSG}${NC}"
   echo -e "${BLUE}========================================${NC}"
   
-  # Checkout the commit
-  echo -e "${YELLOW}Checking out commit ${COMMIT_HASH}...${NC}"
+  # Stash any changes and checkout the commit
+  echo -e "${YELLOW}Stashing changes and checking out commit ${COMMIT_HASH}...${NC}"
+  git stash --quiet
   git checkout "$COMMIT_HASH" --quiet
   
   # Install dependencies if needed (only for first build or if package.json changed)
