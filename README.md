@@ -2,7 +2,13 @@
 
 A creative Next.js project showcasing pixel-perfect text flow around a motorcycle silhouette using the Pretext library. This demonstrates print-magazine-style layouts on the web, with text wrapping dynamically around shapes—something CSS fundamentally cannot do.
 
-## 🏍️ Project Overview
+## 🎮 Live Demo
+
+**[View the Multi-Commit Demo →](https://josip-ledic.github.io/heritage-demo/)**
+
+Experience all 11 commits of this project's development! Each version includes a floating debug panel for easy navigation between commits.
+
+## �️ Project Overview
 
 This is an editorial blog for the fictional premium motorcycle brand "HERITAGE Motors". The key feature is an ~800-word article where text flows around a motorcycle silhouette, creating an immersive, magazine-quality reading experience.
 
@@ -105,12 +111,17 @@ This creates the illusion of text flowing naturally around the motorcycle.
 ### Available Scripts
 
 ```bash
-npm run dev      # Start development server
-npm run build    # Build for production
-npm run start    # Start production server
-npm run lint     # Run ESLint
-npm run format   # Format code with Prettier
-npm run typecheck # Run TypeScript type checking
+npm run dev         # Start development server
+npm run build       # Build for production
+npm run start       # Start production server
+npm run lint        # Run ESLint
+npm run format      # Format code with Prettier
+npm run typecheck   # Run TypeScript type checking
+
+# Multi-commit demo deployment
+npm run build:all   # Build all 11 commits for GitHub Pages
+npm run deploy      # Deploy to GitHub Pages
+npm run serve:dist  # Test the built demo locally
 ```
 
 ### Customization
@@ -149,8 +160,32 @@ This project demonstrates:
 - **Performance Optimization**: Memoization and debouncing for smooth UX
 - **Responsive Design**: Graceful degradation for mobile devices
 - **TypeScript**: Full type safety throughout the codebase
+- **Multi-Commit Deployment**: Automated GitHub Pages deployment with commit navigation
 
-## 📝 License
+## 🚢 Deployment
+
+This project includes a unique multi-commit deployment system that showcases all 11 commits as separate static builds on GitHub Pages.
+
+### Quick Deploy
+
+```bash
+# Build all commits and deploy
+npm run build:all
+npm run deploy
+```
+
+### Features
+
+- 🎯 **Debug Navigation Panel**: Floating panel on each commit for easy navigation
+- 📊 **Commit Timeline**: Beautiful landing page showing all commits
+- 🔄 **Automated CI/CD**: GitHub Actions workflow for automatic deployment
+- 🎨 **Themed UI**: Matches HERITAGE Motors brand colors
+
+### Documentation
+
+For detailed deployment instructions, see [DEPLOYMENT.md](./DEPLOYMENT.md).
+
+## � License
 
 MIT
 
