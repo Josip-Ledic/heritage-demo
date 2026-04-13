@@ -30,7 +30,7 @@ declare -A COMMITS=(
   [8]="d78194d:seventh"
   [9]="56f5342:eight"
   [10]="154e484:nineth"
-  [11]="98324c9:tenth"
+  [11]="c0a94ba:latest"
   [12]="4ce593b:eleventh"
 )
 
