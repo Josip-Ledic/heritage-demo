@@ -20,17 +20,16 @@ BASE_PATH_PREFIX="/${REPO_NAME}"
 
 # Commit information (hash and message)
 declare -A COMMITS=(
-  [1]="a45d6df:feat: initial commit"
-  [2]="e5282b6:first"
-  [3]="7b0b909:second"
-  [4]="f49c679:third"
-  [5]="581aae7:fourth"
-  [6]="ad734ba:fifth"
-  [7]="276e75e:sixth"
-  [8]="d78194d:seventh"
-  [9]="56f5342:eight"
-  [10]="154e484:nineth"
-  [11]="98324c9:tenth"
+  [1]="e5282b6:first"
+  [2]="7b0b909:second"
+  [3]="f49c679:third"
+  [4]="581aae7:fourth"
+  [5]="ad734ba:fifth"
+  [6]="276e75e:sixth"
+  [7]="d78194d:seventh"
+  [8]="56f5342:eight"
+  [9]="154e484:nineth"
+  [10]="98324c9:tenth"
 )
 
 echo -e "${BLUE}========================================${NC}"
@@ -49,7 +48,7 @@ rm -rf "$DIST_DIR"
 mkdir -p "$DIST_DIR"
 
 # Build each commit
-for i in {1..11}; do
+for i in {1..10}; do
   COMMIT_INFO="${COMMITS[$i]}"
   COMMIT_HASH="${COMMIT_INFO%%:*}"
   COMMIT_MSG="${COMMIT_INFO#*:}"
@@ -70,17 +69,62 @@ for i in {1..11}; do
     npm install --silent
   fi
   
+  # Patch next.config.mjs to ensure static export
+  echo -e "${YELLOW}Patching next.config.mjs for static export...${NC}"
+  cat > next.config.mjs << 'NEXTCONFIG'
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  output: "export",
+  trailingSlash: true,
+  images: {
+    unoptimized: true,
+  },
+  basePath: process.env.NEXT_PUBLIC_BASE_PATH || "",
+}
+
+export default nextConfig
+NEXTCONFIG
+
+  # Patch tsconfig.json to exclude demo files
+  echo -e "${YELLOW}Patching tsconfig.json to exclude demo files...${NC}"
+  if [ -f tsconfig.json ]; then
+    # Use jq if available, otherwise use sed
+    if command -v jq &> /dev/null; then
+      jq '.exclude = ["node_modules", "demo.ts", "demo-layout.ts", "demo.html"]' tsconfig.json > tsconfig.json.tmp && mv tsconfig.json.tmp tsconfig.json
+    else
+      # Fallback: use sed to replace the exclude line
+      sed -i.bak 's/"exclude": \[.*\]/"exclude": ["node_modules", "demo.ts", "demo-layout.ts", "demo.html"]/' tsconfig.json
+      rm -f tsconfig.json.bak
+    fi
+  fi
+  
+  # Remove demo files if they exist
+  echo -e "${YELLOW}Removing demo files if present...${NC}"
+  rm -f demo.ts demo-layout.ts demo.html bidi.js
+  
   # Set the base path for this commit
   export NEXT_PUBLIC_BASE_PATH="${BASE_PATH_PREFIX}/commit-$i"
   
   # Build the project
   echo -e "${YELLOW}Building Next.js project...${NC}"
-  npm run build
-  
-  # Copy output to dist directory
-  echo -e "${YELLOW}Copying build output...${NC}"
-  mkdir -p "$DIST_DIR/commit-$i"
-  cp -r out/* "$DIST_DIR/commit-$i/"
+  if npm run build; then
+    # Copy output to dist directory
+    echo -e "${YELLOW}Copying build output...${NC}"
+    mkdir -p "$DIST_DIR/commit-$i"
+    
+    # Check if out directory exists and has content
+    if [ -d "out" ] && [ "$(ls -A out)" ]; then
+      cp -r out/* "$DIST_DIR/commit-$i/"
+    else
+      echo -e "${RED}✗ Error: out directory is empty or doesn't exist${NC}"
+      echo -e "${YELLOW}⚠ Skipping commit #$i${NC}"
+      continue
+    fi
+  else
+    echo -e "${RED}✗ Build failed for commit #$i${NC}"
+    echo -e "${YELLOW}⚠ Skipping commit #$i${NC}"
+    continue
+  fi
   
   # Create a .nojekyll file to prevent GitHub Pages from ignoring _next directory
   touch "$DIST_DIR/commit-$i/.nojekyll"
@@ -95,9 +139,9 @@ git stash --quiet
 git checkout "$CURRENT_BRANCH" --quiet
 git stash pop --quiet 2>/dev/null || true
 
-# Create landing page
+# Create redirect page to latest commit
 echo -e "${BLUE}========================================${NC}"
-echo -e "${GREEN}Creating landing page...${NC}"
+echo -e "${GREEN}Creating redirect to latest commit...${NC}"
 echo -e "${BLUE}========================================${NC}"
 
 cat > "$DIST_DIR/index.html" << 'EOF'
@@ -106,7 +150,8 @@ cat > "$DIST_DIR/index.html" << 'EOF'
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>HERITAGE Motors - Commit Timeline Demo</title>
+  <meta http-equiv="refresh" content="0; url=./commit-10/">
+  <title>HERITAGE Motors - Redirecting...</title>
   <style>
     * {
       margin: 0;
@@ -259,115 +304,39 @@ cat > "$DIST_DIR/index.html" << 'EOF'
     .github-link:hover {
       color: #faf9f6;
     }
+  <style>
+    body {
+      font-family: 'Georgia', serif;
+      background: linear-gradient(135deg, #1e3a5f 0%, #2a4a7f 100%);
+      color: #faf9f6;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0;
+    }
+    .container {
+      text-align: center;
+      padding: 2rem;
+    }
+    h1 {
+      font-size: 3rem;
+      color: #c19a6b;
+      margin-bottom: 1rem;
+    }
+    p {
+      font-size: 1.2rem;
+      opacity: 0.9;
+    }
   </style>
 </head>
 <body>
   <div class="container">
-    <header>
-      <h1>🏍️ HERITAGE Motors</h1>
-      <p class="subtitle">Commit Timeline Demo</p>
-    </header>
-    
-    <div class="intro">
-      <p>
-        Welcome to the HERITAGE Motors editorial blog demo! This project showcases 
-        pixel-perfect text flow around a motorcycle silhouette using the Pretext library.
-      </p>
-      <p style="margin-top: 1rem;">
-        Below you'll find all 11 commits of this project's development. Click on any commit 
-        to view that specific version of the site. Each version includes a floating debug 
-        panel that lets you navigate between commits.
-      </p>
-    </div>
-    
-    <div class="timeline">
-      <div class="commit-card">
-        <span class="commit-number">Commit #1</span>
-        <div class="commit-hash">a45d6df</div>
-        <div class="commit-message">"feat: initial commit"</div>
-        <a href="./commit-1/" class="commit-link">View Commit #1 →</a>
-      </div>
-      
-      <div class="commit-card">
-        <span class="commit-number">Commit #2</span>
-        <div class="commit-hash">e5282b6</div>
-        <div class="commit-message">"first"</div>
-        <a href="./commit-2/" class="commit-link">View Commit #2 →</a>
-      </div>
-      
-      <div class="commit-card">
-        <span class="commit-number">Commit #3</span>
-        <div class="commit-hash">7b0b909</div>
-        <div class="commit-message">"second"</div>
-        <a href="./commit-3/" class="commit-link">View Commit #3 →</a>
-      </div>
-      
-      <div class="commit-card">
-        <span class="commit-number">Commit #4</span>
-        <div class="commit-hash">f49c679</div>
-        <div class="commit-message">"third"</div>
-        <a href="./commit-4/" class="commit-link">View Commit #4 →</a>
-      </div>
-      
-      <div class="commit-card">
-        <span class="commit-number">Commit #5</span>
-        <div class="commit-hash">581aae7</div>
-        <div class="commit-message">"fourth"</div>
-        <a href="./commit-5/" class="commit-link">View Commit #5 →</a>
-      </div>
-      
-      <div class="commit-card">
-        <span class="commit-number">Commit #6</span>
-        <div class="commit-hash">ad734ba</div>
-        <div class="commit-message">"fifth"</div>
-        <a href="./commit-6/" class="commit-link">View Commit #6 →</a>
-      </div>
-      
-      <div class="commit-card">
-        <span class="commit-number">Commit #7</span>
-        <div class="commit-hash">276e75e</div>
-        <div class="commit-message">"sixth"</div>
-        <a href="./commit-7/" class="commit-link">View Commit #7 →</a>
-      </div>
-      
-      <div class="commit-card">
-        <span class="commit-number">Commit #8</span>
-        <div class="commit-hash">d78194d</div>
-        <div class="commit-message">"seventh"</div>
-        <a href="./commit-8/" class="commit-link">View Commit #8 →</a>
-      </div>
-      
-      <div class="commit-card">
-        <span class="commit-number">Commit #9</span>
-        <div class="commit-hash">56f5342</div>
-        <div class="commit-message">"eight"</div>
-        <a href="./commit-9/" class="commit-link">View Commit #9 →</a>
-      </div>
-      
-      <div class="commit-card">
-        <span class="commit-number">Commit #10</span>
-        <div class="commit-hash">154e484</div>
-        <div class="commit-message">"nineth"</div>
-        <a href="./commit-10/" class="commit-link">View Commit #10 →</a>
-      </div>
-      
-      <div class="commit-card">
-        <span class="commit-number">Commit #11</span>
-        <div class="commit-hash">98324c9</div>
-        <div class="commit-message">"tenth"</div>
-        <a href="./commit-11/" class="commit-link">View Commit #11 →</a>
-      </div>
-    </div>
-    
-    <footer>
-      <p>
-        View the source code on 
-        <a href="https://github.com/Josip-Ledic/heritage-demo" class="github-link" target="_blank">GitHub</a>
-      </p>
-      <p style="margin-top: 0.5rem;">
-        <strong>HERITAGE Motors</strong> - <em>Crafted with precision. Ridden with passion.</em>
-      </p>
-    </footer>
+    <h1>🏍️ HERITAGE Motors</h1>
+    <p>Redirecting to latest version...</p>
+    <p style="margin-top: 2rem; font-size: 1rem;">
+      <a href="./commit-10/" style="color: #c19a6b; text-decoration: none;">Click here if not redirected automatically</a>
+    </p>
   </div>
 </body>
 </html>
@@ -384,7 +353,7 @@ echo -e "${BLUE}========================================${NC}"
 echo -e "${GREEN}Build Complete!${NC}"
 echo -e "${BLUE}========================================${NC}"
 echo -e "${YELLOW}Output directory: ${DIST_DIR}/${NC}"
-echo -e "${YELLOW}Total commits built: 11${NC}"
+echo -e "${YELLOW}Total commits built: 10${NC}"
 echo ""
 echo -e "${GREEN}Next steps:${NC}"
 echo -e "  1. Test locally: ${YELLOW}npx serve dist${NC}"
