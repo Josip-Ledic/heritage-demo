@@ -11,6 +11,16 @@ import {
   type RectObstacle,
 } from "@/lib/text-flow"
 
+// Helper to get the correct asset path
+// For production: prepend /heritage-demo, for dev: use as-is
+const getAssetPath = (path: string) => {
+  // Check if we're in production (GitHub Pages)
+  if (typeof window !== 'undefined' && window.location.hostname.includes('github.io')) {
+    return `/heritage-demo${path}`
+  }
+  return path
+}
+
 const BIKE_IMAGES = ["/bike1.png", "/bike2.png", "/bike3.png"]
 
 type SidebarStyle = {
@@ -63,7 +73,7 @@ export function ArticleLayout() {
   // Load motorcycle image and extract alpha channel
   useEffect(() => {
     const img = new Image()
-    img.src = BIKE_IMAGES[0]
+    img.src = getAssetPath(BIKE_IMAGES[0])
     img.onload = () => {
       const canvas = document.createElement('canvas')
       canvas.width = img.naturalWidth
@@ -94,7 +104,7 @@ export function ArticleLayout() {
     }
 
     // Initialize audio
-    audioRef.current = new Audio("/revvingsound.mp3")
+    audioRef.current = new Audio(getAssetPath("/revvingsound.mp3"))
 
     return () => {
       if (animationIntervalRef.current) {
@@ -313,7 +323,7 @@ export function ArticleLayout() {
       <div
         className="fixed inset-0 bg-cover bg-center bg-no-repeat"
         style={{
-          backgroundImage: `url('/route66.avif')`,
+          backgroundImage: `url('${getAssetPath('/route66.avif')}')`,
           backgroundBlendMode: "overlay",
           zIndex: 0,
           opacity: 0.25,
@@ -474,7 +484,7 @@ export function ArticleLayout() {
         {/* Motorcycle - draggable, fixed positioning to prevent clipping */}
         {motorcyclePos && (
           <img
-            src={BIKE_IMAGES[currentBikeIndex]}
+            src={getAssetPath(BIKE_IMAGES[currentBikeIndex])}
             alt="Heritage Motorcycle"
             className="fixed"
             draggable={false}
