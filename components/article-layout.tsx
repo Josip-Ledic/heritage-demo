@@ -10,6 +10,10 @@ import {
   type ImageObstacle,
   type RectObstacle,
 } from "@/lib/text-flow"
+import dynamic from 'next/dynamic'
+
+// Dynamically import the 3D component to avoid SSR issues
+const Motorcycle3D = dynamic(() => import('./motorcycle-3d'), { ssr: false })
 
 // Helper to get the correct asset path
 // For production: prepend /heritage-demo (repo root), for dev: use as-is
@@ -503,33 +507,32 @@ export function ArticleLayout() {
                   }}>Every HERITAGE motorcycle is handcrafted with precision, blending timeless design with cutting-edge engineering.</p>
                 </div>
 
-        {/* Motorcycle - draggable, fixed positioning to prevent clipping */}
+        {/* Motorcycle 3D - draggable, fixed positioning to prevent clipping */}
         {motorcyclePos && (
-          <img
-            src={getAssetPath(BIKE_IMAGES[currentBikeIndex])}
-            alt="Heritage Motorcycle"
+          <div
             className="fixed"
-            draggable={false}
             onPointerDown={handleMotorcyclePointerDown}
             onPointerMove={handleMotorcyclePointerMove}
             onPointerUp={handleMotorcyclePointerUp}
             style={{
-                          left: `${motorcyclePos.x}px`,
-                          top: `${motorcyclePos.y}px`,
-                          width: `${motorcyclePos.width}px`,
-                          height: `${motorcyclePos.height}px`,
-                          cursor: isDragging ? "grabbing" : "grab",
-                          filter: isDragging
-                            ? "brightness(1.05) drop-shadow(0 8px 16px rgba(0, 0, 0, 0.15))"
-                            : "drop-shadow(0 4px 12px rgba(0, 0, 0, 0.1))",
-                          zIndex: 30,
-                          pointerEvents: "auto",
-                          opacity: isDragging ? 0.98 : 1,
-                          touchAction: "none",
-                          transition: "filter 0.3s ease, opacity 0.15s ease-in-out, transform 0.05s ease-out",
-                          transform: isRevving ? "scale(1.002)" : "scale(1)",
-                        }}
-          />
+              left: `${motorcyclePos.x}px`,
+              top: `${motorcyclePos.y}px`,
+              width: `${motorcyclePos.width}px`,
+              height: `${motorcyclePos.height}px`,
+              cursor: isDragging ? "grabbing" : "grab",
+              filter: isDragging
+                ? "brightness(1.05) drop-shadow(0 8px 16px rgba(0, 0, 0, 0.15))"
+                : "drop-shadow(0 4px 12px rgba(0, 0, 0, 0.1))",
+              zIndex: 30,
+              pointerEvents: "auto",
+              opacity: isDragging ? 0.98 : 1,
+              touchAction: "none",
+              transition: "filter 0.3s ease, opacity 0.15s ease-in-out, transform 0.05s ease-out",
+              transform: isRevving ? "scale(1.002)" : "scale(1)",
+            }}
+          >
+            <Motorcycle3D />
+          </div>
         )}
       </div>
 
