@@ -16,8 +16,9 @@ const getAssetPath = (path: string) => {
   // In browser, extract basePath from current URL
   if (typeof window !== 'undefined') {
     const pathname = window.location.pathname
-    const match = pathname.match(/^(\/[^\/]+)?\/commit-\d+/)
-    const basePath = match ? match[1] || '' : ''
+    // Match /heritage-demo/commit-10/ and extract /heritage-demo/commit-10
+    const match = pathname.match(/^(\/[^\/]+\/commit-\d+)/)
+    const basePath = match ? match[1] : ''
     return `${basePath}${path}`
   }
   // During SSR/build, use environment variable
