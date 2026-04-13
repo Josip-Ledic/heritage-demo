@@ -1,14 +1,14 @@
 "use client"
 
-import { useEffect, useState, useRef } from "react"
+import { useEffect, useState, useRef, useCallback } from "react"
 import { layoutWithLines, prepareWithSegments } from "@chenglou/pretext"
 import { article } from "@/lib/article-data"
 import {
   layoutTextWithObstacle,
   type TextLine,
   type MotorcyclePosition,
-  type ImageObstacle,
   type RectObstacle,
+  type PolygonObstacle,
 } from "@/lib/text-flow"
 import dynamic from 'next/dynamic'
 
@@ -49,7 +49,6 @@ export function ArticleLayout() {
   const [isDragging, setIsDragging] = useState(false)
   const [dragStart, setDragStart] = useState<{ x: number; y: number } | null>(null)
   const [motorcycleStart, setMotorcycleStart] = useState<{ x: number; y: number } | null>(null)
-  const [motorcycleImageData, setMotorcycleImageData] = useState<ImageData | null>(null)
   const [contentWidth, setContentWidth] = useState(0)
   const [contentLeft, setContentLeft] = useState(0)
   const [sidebarTop, setSidebarTop] = useState(SIDEBAR_TOP_OFFSET)
@@ -61,11 +60,27 @@ export function ArticleLayout() {
   const [currentBikeIndex, setCurrentBikeIndex] = useState(0)
   const [isRevving, setIsRevving] = useState(false)
   const [scrollProgress, setScrollProgress] = useState(0)
+  const [model3DBounds, setModel3DBounds] = useState<{
+    width: number;
+    height: number;
+    rotation: number;
+    polygon: Array<{ x: number; y: number }>;
+  } | null>(null)
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const animationIntervalRef = useRef<NodeJS.Timeout | null>(null)
 
   const contentRef = useRef<HTMLDivElement>(null)
   const preparedTextRef = useRef<ReturnType<typeof prepareWithSegments> | null>(null)
+  
+  // Callback to handle 3D model bounds changes
+  const handle3DBoundsChange = useCallback((bounds: {
+    width: number;
+    height: number;
+    rotation: number;
+    polygon: Array<{ x: number; y: number }>;
+  }) => {
+    setModel3DBounds(bounds)
+  }, [])
 
   // Font configuration - refined typography
     const fontSize = 21
@@ -80,38 +95,15 @@ export function ArticleLayout() {
   const DROP_CAP_WIDTH = 60
   const DROP_CAP_HEIGHT = lineHeight * 2 // Reduced from 3 to 2 line heights
 
-  // Load motorcycle image and extract alpha channel
+  // Initialize motorcycle position for 3D model
   useEffect(() => {
-    const img = new Image()
-    img.src = getAssetPath(BIKE_IMAGES[0])
-    img.onload = () => {
-      const canvas = document.createElement('canvas')
-      canvas.width = img.naturalWidth
-      canvas.height = img.naturalHeight
-      const ctx = canvas.getContext('2d')
-
-      if (ctx) {
-        ctx.drawImage(img, 0, 0)
-        try {
-          const imageData = ctx.getImageData(0, 0, img.naturalWidth, img.naturalHeight)
-          setMotorcycleImageData(imageData)
-
-          // Initialize motorcycle position - very large and prominent
-          const aspectRatio = img.naturalWidth / img.naturalHeight
-          const motorcycleWidth = 810
-          const motorcycleHeight = motorcycleWidth / aspectRatio
-
-          setMotorcyclePos({
-            x: 0, // Will be centered in layout effect
-            y: 0, // Will be positioned relative to content
-            width: motorcycleWidth,
-            height: motorcycleHeight,
-          })
-        } catch (e) {
-          console.warn('Could not extract image data:', e)
-        }
-      }
-    }
+    // Set initial position - will be centered in layout effect
+    setMotorcyclePos({
+      x: 0,
+      y: 0,
+      width: 800, // Initial size, will be updated by 3D bounds
+      height: 600,
+    })
 
     // Initialize audio
     audioRef.current = new Audio(getAssetPath("/revvingsound.mp3"))
@@ -236,15 +228,6 @@ export function ArticleLayout() {
       setContentWidth(calculatedContentWidth)
       setContentLeft(calculatedContentLeft)
 
-      // Position motorcycle centered and overlapping with title if not yet positioned
-      if (motorcyclePos && motorcyclePos.x === 0) {
-        setMotorcyclePos({
-          ...motorcyclePos,
-          x: calculatedContentLeft + (calculatedContentWidth - motorcyclePos.width) / 2,
-          y: contentStartY - 100, // Overlap upward into title area
-        })
-        return
-      }
 
       // Create drop cap obstacle
       const dropCapObstacle: RectObstacle = {
@@ -254,25 +237,42 @@ export function ArticleLayout() {
         height: DROP_CAP_HEIGHT,
       }
 
-      // Create image obstacle for motorcycle (convert fixed position to page coordinates)
-      const imageObstacle: ImageObstacle | null = motorcyclePos && motorcycleImageData ? {
-        x: motorcyclePos.x - calculatedContentLeft,
-        y: motorcyclePos.y + scrollY, // Add scroll offset since motorcycle is fixed
-        width: motorcyclePos.width,
-        height: motorcyclePos.height,
-        imageData: motorcycleImageData,
-      } : null
+      // Create obstacle for motorcycle using 3D model polygon
+      let polygonObstacle: PolygonObstacle | null = null
+      
+      if (model3DBounds && model3DBounds.polygon) {
+        // The polygon points are in viewport coordinates (from THREE.js projection)
+        // The canvas is fullscreen FIXED, so coords are viewport-relative, NOT page-relative
+        // contentStartY is in page coords, but we need to convert it to viewport coords
+        // by subtracting scrollY
+        const contentStartYViewport = contentStartY - scrollY
+        
+        // Add manual offset to align properly
+        const MANUAL_Y_OFFSET = 370
+        
+        const contentPolygon = model3DBounds.polygon.map(p => ({
+          x: p.x - calculatedContentLeft,
+          y: p.y - contentStartYViewport + MANUAL_Y_OFFSET
+        }))
+        
+        polygonObstacle = {
+          polygon: contentPolygon,
+          x: 0,
+          y: 0,
+        }
+      }
 
       // Layout text with Pretext
-            const layoutLines = layoutTextWithObstacle(
-              preparedTextRef.current!,
-              calculatedContentWidth,
-              lineHeight,
-              contentStartY,
-              null,
-              [dropCapObstacle],
-              imageObstacle
-            )
+      const layoutLines = layoutTextWithObstacle(
+        preparedTextRef.current!,
+        calculatedContentWidth,
+        lineHeight,
+        contentStartY,
+        null,
+        [dropCapObstacle],
+        null, // No image obstacle for 3D model
+        polygonObstacle
+      )
 
       // Convert to page coordinates and make relative to content div
       const pageLines = layoutLines.map(line => ({
@@ -293,7 +293,7 @@ export function ArticleLayout() {
       window.removeEventListener("resize", handleResize)
       window.removeEventListener("scroll", updateLayout)
     }
-  }, [motorcyclePos, motorcycleImageData, lineHeight, GUTTER, CONTENT_MAX_WIDTH, DROP_CAP_WIDTH, DROP_CAP_HEIGHT, headingFontFamily])
+  }, [model3DBounds, lineHeight, GUTTER, CONTENT_MAX_WIDTH, DROP_CAP_WIDTH, DROP_CAP_HEIGHT, headingFontFamily])
 
   // Simple drag handlers
   const handleMotorcyclePointerDown = (e: React.PointerEvent<HTMLImageElement>) => {
@@ -507,33 +507,16 @@ export function ArticleLayout() {
                   }}>Every HERITAGE motorcycle is handcrafted with precision, blending timeless design with cutting-edge engineering.</p>
                 </div>
 
-        {/* Motorcycle 3D - draggable, fixed positioning to prevent clipping */}
-        {motorcyclePos && (
-          <div
-            className="fixed"
-            onPointerDown={handleMotorcyclePointerDown}
-            onPointerMove={handleMotorcyclePointerMove}
-            onPointerUp={handleMotorcyclePointerUp}
-            style={{
-              left: `${motorcyclePos.x}px`,
-              top: `${motorcyclePos.y}px`,
-              width: `${motorcyclePos.width}px`,
-              height: `${motorcyclePos.height}px`,
-              cursor: isDragging ? "grabbing" : "grab",
-              filter: isDragging
-                ? "brightness(1.05) drop-shadow(0 8px 16px rgba(0, 0, 0, 0.15))"
-                : "drop-shadow(0 4px 12px rgba(0, 0, 0, 0.1))",
-              zIndex: 30,
-              pointerEvents: "auto",
-              opacity: isDragging ? 0.98 : 1,
-              touchAction: "none",
-              transition: "filter 0.3s ease, opacity 0.15s ease-in-out, transform 0.05s ease-out",
-              transform: isRevving ? "scale(1.002)" : "scale(1)",
-            }}
-          >
-            <Motorcycle3D />
-          </div>
-        )}
+        {/* Motorcycle 3D - fullscreen canvas overlay */}
+        <div
+          className="fixed inset-0"
+          style={{
+            zIndex: 30,
+            pointerEvents: "none",
+          }}
+        >
+          <Motorcycle3D onBoundsChange={handle3DBoundsChange} />
+        </div>
       </div>
 
       {/* Hint - top right corner */}

@@ -33,14 +33,20 @@ export interface ImageObstacle {
   imageData?: ImageData // Optional: for alpha-channel based flow
 }
 
+export interface PolygonObstacle {
+  polygon: Array<{ x: number; y: number }>
+  x: number // for compatibility
+  y: number // for compatibility
+}
+
 type Interval = {
   left: number
   right: number
 }
 
 const MIN_SLOT_WIDTH = 50
-const H_PAD = 20
-const V_PAD = 8
+const H_PAD = 35
+const V_PAD = 15
 const RECT_H_PAD = 15
 const RECT_V_PAD = 10
 
@@ -178,8 +184,39 @@ function getImageIntervalForBand(
 }
 
 /**
+ * For a convex polygon, find the x-interval [left, right] that the polygon
+ * occupies at scanline y (returns null if polygon doesn't cover that y)
+ */
+function polygonXIntervalAtY(poly: Array<{ x: number; y: number }>, y: number): { left: number; right: number } | null {
+  let minX = Infinity
+  let maxX = -Infinity
+  const n = poly.length
+  
+  for (let i = 0; i < n; i++) {
+    const a = poly[i]
+    const b = poly[(i + 1) % n]
+    const minY = Math.min(a.y, b.y)
+    const maxY = Math.max(a.y, b.y)
+    
+    if (y < minY || y > maxY) continue
+    
+    if (maxY === minY) {
+      minX = Math.min(minX, a.x, b.x)
+      maxX = Math.max(maxX, a.x, b.x)
+    } else {
+      const t = (y - a.y) / (b.y - a.y)
+      const ix = a.x + t * (b.x - a.x)
+      minX = Math.min(minX, ix)
+      maxX = Math.max(maxX, ix)
+    }
+  }
+  
+  return minX === Infinity ? null : { left: minX, right: maxX }
+}
+
+/**
  * Layout text with obstacle avoidance using the demo's algorithm
- * Supports circular obstacles, rectangular obstacles, and image-based obstacles
+ * Supports circular obstacles, rectangular obstacles, image-based obstacles, and polygon obstacles
  */
 export function layoutTextWithObstacle(
   prepared: PreparedTextWithSegments,
@@ -188,7 +225,8 @@ export function layoutTextWithObstacle(
   startY: number,
   motorcyclePos: MotorcyclePosition | null,
   rectObstacles: RectObstacle[] = [],
-  imageObstacle: ImageObstacle | null = null
+  imageObstacle: ImageObstacle | null = null,
+  polygonObstacle: PolygonObstacle | null = null
 ): TextLine[] {
   const lines: TextLine[] = []
   let cursor: LayoutCursor = { segmentIndex: 0, graphemeIndex: 0 }
@@ -199,8 +237,30 @@ export function layoutTextWithObstacle(
     const lineBottom = lineTop + lineHeight
     const blocked: Interval[] = []
     
+    // Check if polygon obstacle blocks this line (highest priority)
+    if (polygonObstacle && polygonObstacle.polygon) {
+      // Sample at top, middle, and bottom of the line band for accuracy
+      const sampleYs = [lineTop, (lineTop + lineBottom) * 0.5, lineBottom]
+      let left = Infinity
+      let right = -Infinity
+      
+      for (const sy of sampleYs) {
+        const interval = polygonXIntervalAtY(polygonObstacle.polygon, sy)
+        if (interval) {
+          left = Math.min(left, interval.left)
+          right = Math.max(right, interval.right)
+        }
+      }
+      
+      if (right > left) {
+        blocked.push({
+          left: left - H_PAD,
+          right: right + H_PAD
+        })
+      }
+    }
     // Check if image obstacle blocks this line (takes precedence over circle)
-    if (imageObstacle) {
+    else if (imageObstacle) {
       const interval = getImageIntervalForBand(
         imageObstacle,
         lineTop,
@@ -212,7 +272,7 @@ export function layoutTextWithObstacle(
         blocked.push(interval)
       }
     }
-    // Fallback to circular obstacle if no image obstacle
+    // Fallback to circular obstacle if no image or polygon obstacle
     else if (motorcyclePos) {
       // Treat the motorcycle as a circle with center and radius
       const cx = motorcyclePos.x + motorcyclePos.width / 2
