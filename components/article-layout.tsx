@@ -11,17 +11,21 @@ import {
   type RectObstacle,
 } from "@/lib/text-flow"
 
-// Helper to get the correct asset path with basePath
+// Helper to get the correct asset path with basePath at runtime
 const getAssetPath = (path: string) => {
+  // In browser, extract basePath from current URL
+  if (typeof window !== 'undefined') {
+    const pathname = window.location.pathname
+    const match = pathname.match(/^(\/[^\/]+)?\/commit-\d+/)
+    const basePath = match ? match[1] || '' : ''
+    return `${basePath}${path}`
+  }
+  // During SSR/build, use environment variable
   const basePath = process.env.NEXT_PUBLIC_BASE_PATH || ''
   return `${basePath}${path}`
 }
 
-const BIKE_IMAGES = [
-  getAssetPath("/bike1.png"),
-  getAssetPath("/bike2.png"),
-  getAssetPath("/bike3.png")
-]
+const BIKE_IMAGES = ["/bike1.png", "/bike2.png", "/bike3.png"]
 
 type SidebarStyle = {
   position: 'absolute' | 'fixed';
@@ -73,7 +77,7 @@ export function ArticleLayout() {
   // Load motorcycle image and extract alpha channel
   useEffect(() => {
     const img = new Image()
-    img.src = getAssetPath("/bike1.png")
+    img.src = getAssetPath(BIKE_IMAGES[0])
     img.onload = () => {
       const canvas = document.createElement('canvas')
       canvas.width = img.naturalWidth
@@ -468,7 +472,7 @@ export function ArticleLayout() {
         {/* Motorcycle - draggable, fixed positioning to prevent clipping */}
         {motorcyclePos && (
           <img
-            src={BIKE_IMAGES[currentBikeIndex]}
+            src={getAssetPath(BIKE_IMAGES[currentBikeIndex])}
             alt="Heritage Motorcycle"
             className="fixed"
             draggable={false}
