@@ -90,6 +90,8 @@ done
 
 # Return to original branch
 echo -e "${YELLOW}Returning to branch ${CURRENT_BRANCH}...${NC}"
+git reset --hard HEAD
+git clean -fd
 git checkout "$CURRENT_BRANCH" --quiet
 
 # Create landing page
