@@ -42,10 +42,7 @@ export function CommitDebugPanel() {
     setMounted(true)
   }, [])
   
-  // Check if we're in a commit directory (production deployment)
-  const isProduction = mounted && typeof window !== 'undefined' && window.location.pathname.includes('/commit-')
-  
-  if (!mounted || !isProduction) {
+  if (!mounted) {
     return null
   }
 

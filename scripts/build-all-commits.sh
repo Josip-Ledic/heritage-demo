@@ -200,7 +200,7 @@ cat > "$DIST_DIR/index.html" << 'EOF'
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta http-equiv="refresh" content="0; url=./commit-12/">
+  <meta http-equiv="refresh" content="0; url=./commit-11/">
   <title>HERITAGE Motors - Redirecting...</title>
   <style>
     * {
