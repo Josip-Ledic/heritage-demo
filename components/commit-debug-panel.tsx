@@ -30,9 +30,20 @@ function getInitialCommit(): number {
   return match ? parseInt(match[1]) : 1
 }
 
+function isProduction(): boolean {
+  if (typeof window === 'undefined') return false
+  // Check if we're in a commit subdirectory (production deployment)
+  return window.location.pathname.includes('/commit-')
+}
+
 export function CommitDebugPanel() {
   const [isExpanded, setIsExpanded] = useState(true)
   const [currentCommit, setCurrentCommit] = useState<number>(getInitialCommit)
+  
+  // Don't show panel in development mode
+  if (!isProduction()) {
+    return null
+  }
 
   const navigateToCommit = (commitNumber: number) => {
     const baseUrl = window.location.origin + window.location.pathname.split('/commit-')[0]
