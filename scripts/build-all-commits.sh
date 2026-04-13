@@ -67,11 +67,9 @@ for i in {1..13}; do
   git stash --quiet
   git checkout "$COMMIT_HASH" --quiet
   
-  # Install dependencies if needed (only for first build or if package.json changed)
-  if [ $i -eq 1 ] || git diff --name-only HEAD~1 HEAD | grep -q "package.json"; then
-    echo -e "${YELLOW}Installing dependencies...${NC}"
-    npm install --silent
-  fi
+  # Install dependencies for each commit to ensure correct versions
+  echo -e "${YELLOW}Installing dependencies...${NC}"
+  npm install --silent
   
   # Patch next.config.mjs to ensure static export
   echo -e "${YELLOW}Patching next.config.mjs for static export...${NC}"
