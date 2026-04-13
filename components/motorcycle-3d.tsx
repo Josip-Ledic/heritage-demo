@@ -14,6 +14,7 @@ interface Motorcycle3DProps {
   }) => void
   onDragStart?: () => void
   onDragEnd?: () => void
+  scrollProgress?: number
 }
 
 // Helper to get the correct asset path
@@ -28,16 +29,18 @@ const getAssetPath = (path: string) => {
   return path
 }
 
-function MotorcycleModel({ onBoundsChange, onDragStart, onDragEnd }: {
+function MotorcycleModel({ onBoundsChange, onDragStart, onDragEnd, scrollProgress = 0 }: {
   onBoundsChange?: (bounds: { width: number; height: number; rotation: number; polygon: Array<{ x: number; y: number }> }) => void
   onDragStart?: () => void
   onDragEnd?: () => void
+  scrollProgress?: number
 }) {
   const meshRef = useRef<THREE.Group>(null)
   const [modelPath] = useState(() => getAssetPath('/motorcycle-3d.glb'))
   const { camera, size, raycaster, pointer } = useThree()
   const [isDragging, setIsDragging] = useState(false)
   const dragOffset = useRef(new THREE.Vector3())
+  const [fadeIn, setFadeIn] = useState(0)
   
   // Load the GLB model using useGLTF hook (must be at top level)
   const { scene } = useGLTF(modelPath)
@@ -155,7 +158,7 @@ function MotorcycleModel({ onBoundsChange, onDragStart, onDragEnd }: {
     return { polygon: hull, width, height }
   }, [worldToScreen, convexHull])
 
-  // Handle dragging
+  // Handle dragging with window-level events for better tracking
   const screenToWorld = useCallback((screenX: number, screenY: number) => {
     const x = (screenX / size.width) * 2 - 1
     const y = -(screenY / size.height) * 2 + 1
@@ -166,6 +169,32 @@ function MotorcycleModel({ onBoundsChange, onDragStart, onDragEnd }: {
     return camera.position.clone().add(dir.multiplyScalar(distance))
   }, [camera, size])
 
+  // Set up window-level drag handlers
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (isDragging && meshRef.current) {
+        const worldPos = screenToWorld(e.clientX, e.clientY)
+        meshRef.current.position.copy(worldPos.add(dragOffset.current))
+      }
+    }
+
+    const handleMouseUp = () => {
+      if (isDragging) {
+        setIsDragging(false)
+        onDragEnd?.()
+      }
+    }
+
+    if (isDragging) {
+      window.addEventListener('mousemove', handleMouseMove)
+      window.addEventListener('mouseup', handleMouseUp)
+      return () => {
+        window.removeEventListener('mousemove', handleMouseMove)
+        window.removeEventListener('mouseup', handleMouseUp)
+      }
+    }
+  }, [isDragging, screenToWorld, onDragEnd])
+
   const handlePointerDown = useCallback((e: any) => {
     e.stopPropagation()
     if (meshRef.current) {
@@ -175,20 +204,6 @@ function MotorcycleModel({ onBoundsChange, onDragStart, onDragEnd }: {
       onDragStart?.()
     }
   }, [screenToWorld, onDragStart])
-
-  const handlePointerMove = useCallback((e: any) => {
-    if (isDragging && meshRef.current) {
-      const worldPos = screenToWorld(e.clientX, e.clientY)
-      meshRef.current.position.copy(worldPos.add(dragOffset.current))
-    }
-  }, [isDragging, screenToWorld])
-
-  const handlePointerUp = useCallback(() => {
-    if (isDragging) {
-      setIsDragging(false)
-      onDragEnd?.()
-    }
-  }, [isDragging, onDragEnd])
 
   // Rotate the model slowly around Y-axis only and update bounds
   useFrame((state, delta) => {
@@ -213,16 +228,55 @@ function MotorcycleModel({ onBoundsChange, onDragStart, onDragEnd }: {
     }
   })
 
+  // Calculate scale based on scroll progress: start at 2.6, shrink to 2.0 (23% decrease)
+  const dynamicScale = 2.6 - (scrollProgress * 0.6)
+  
+  // Fade in on mount over 1 second
+  useEffect(() => {
+    let startTime: number | null = null
+    const duration = 1000 // 1 second
+    
+    const animate = (timestamp: number) => {
+      if (!startTime) startTime = timestamp
+      const elapsed = timestamp - startTime
+      const progress = Math.min(elapsed / duration, 1)
+      
+      setFadeIn(progress)
+      
+      if (progress < 1) {
+        requestAnimationFrame(animate)
+      }
+    }
+    
+    requestAnimationFrame(animate)
+  }, [])
+  
+  // Apply opacity to all materials in the model
+  useEffect(() => {
+    if (meshRef.current) {
+      meshRef.current.traverse((child) => {
+        if (child instanceof THREE.Mesh && child.material) {
+          if (Array.isArray(child.material)) {
+            child.material.forEach(mat => {
+              mat.transparent = true
+              mat.opacity = fadeIn
+            })
+          } else {
+            child.material.transparent = true
+            child.material.opacity = fadeIn
+          }
+        }
+      })
+    }
+  }, [fadeIn])
+  
   return (
     <group
       ref={meshRef}
-      position={[0, 1, 0]}
-      scale={2}
+      position={[0, 0, 0]}
+      scale={dynamicScale}
       rotation={[0, 0, 0]}
       onPointerDown={handlePointerDown}
-      onPointerMove={handlePointerMove}
-      onPointerUp={handlePointerUp}
-      onPointerLeave={handlePointerUp}
     >
       <primitive object={clonedScene} />
     </group>
@@ -239,7 +293,7 @@ function LoadingFallback() {
   return null
 }
 
-export default function Motorcycle3D({ onBoundsChange, onDragStart, onDragEnd }: Motorcycle3DProps = {}) {
+export default function Motorcycle3D({ onBoundsChange, onDragStart, onDragEnd, scrollProgress = 0 }: Motorcycle3DProps = {}) {
   const [mounted, setMounted] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -293,6 +347,7 @@ export default function Motorcycle3D({ onBoundsChange, onDragStart, onDragEnd }:
             onBoundsChange={onBoundsChange}
             onDragStart={onDragStart}
             onDragEnd={onDragEnd}
+            scrollProgress={scrollProgress}
           />
         </Suspense>
       </Canvas>

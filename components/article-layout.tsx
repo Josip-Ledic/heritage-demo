@@ -512,10 +512,12 @@ export function ArticleLayout() {
           className="fixed inset-0"
           style={{
             zIndex: 30,
-            pointerEvents: "none",
           }}
         >
-          <Motorcycle3D onBoundsChange={handle3DBoundsChange} />
+          <Motorcycle3D
+            onBoundsChange={handle3DBoundsChange}
+            scrollProgress={scrollProgress}
+          />
         </div>
       </div>
 
