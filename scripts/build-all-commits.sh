@@ -122,6 +122,20 @@ NEXTCONFIG
     if [ -d "out" ] && [ "$(ls -A out)" ]; then
       cp -r out/* "$DIST_DIR/commit-$i/"
       
+      # Fix asset paths in HTML files - replace /asset with /heritage-demo/asset
+      echo -e "${YELLOW}Fixing asset paths in HTML files...${NC}"
+      find "$DIST_DIR/commit-$i" -name "*.html" -type f -exec sed -i.bak \
+        -e "s|url('/route66\.avif')|url('/heritage-demo/route66.avif')|g" \
+        -e "s|url(\&\#x27;/route66\.avif\&\#x27;)|url(\&\#x27;/heritage-demo/route66.avif\&\#x27;)|g" \
+        -e 's|src="/bike1\.png"|src="/heritage-demo/bike1.png"|g' \
+        -e 's|src="/bike2\.png"|src="/heritage-demo/bike2.png"|g' \
+        -e 's|src="/bike3\.png"|src="/heritage-demo/bike3.png"|g' \
+        -e 's|src="/bob\.png"|src="/heritage-demo/bob.png"|g' \
+        -e 's|"/revvingsound\.mp3"|"/heritage-demo/revvingsound.mp3"|g' \
+        {} \;
+      # Remove backup files
+      find "$DIST_DIR/commit-$i" -name "*.bak" -type f -delete
+      
       # Copy public assets to root of dist directory as workaround for asset path issues
       echo -e "${YELLOW}Copying public assets to root...${NC}"
       if [ -d "public" ]; then
