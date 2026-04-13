@@ -23,15 +23,16 @@ declare -A COMMITS=(
   [1]="a45d6df:initial"
   [2]="e5282b6:first"
   [3]="7b0b909:second"
-  [4]="f49c679:third"
-  [5]="581aae7:fourth"
-  [6]="ad734ba:fifth"
-  [7]="276e75e:sixth"
-  [8]="d78194d:seventh"
-  [9]="56f5342:eight"
-  [10]="154e484:nineth"
-  [11]="c0a94ba:latest"
-  [12]="4ce593b:eleventh"
+  [4]="3a86dd6:fourth"
+  [5]="842d34b:fifth"
+  [6]="3c3fcea:sixth"
+  [7]="0f657a9:seventh"
+  [8]="56f5342:eight"
+  [9]="154e484:nineth"
+  [10]="55a2164:tenth"
+  [11]="c0a94ba:eleventh"
+  [12]="6dffa9a:twelfth"
+  [13]="724ac73:thirteenth"
 )
 
 echo -e "${BLUE}========================================${NC}"
@@ -50,7 +51,7 @@ rm -rf "$DIST_DIR"
 mkdir -p "$DIST_DIR"
 
 # Build each commit
-for i in {1..12}; do
+for i in {1..13}; do
   COMMIT_INFO="${COMMITS[$i]}"
   COMMIT_HASH="${COMMIT_INFO%%:*}"
   COMMIT_MSG="${COMMIT_INFO#*:}"
@@ -203,7 +204,7 @@ cat > "$DIST_DIR/index.html" << 'EOF'
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta http-equiv="refresh" content="0; url=./commit-11/">
+  <meta http-equiv="refresh" content="0; url=./commit-13/">
   <title>HERITAGE Motors - Redirecting...</title>
   <style>
     * {
@@ -388,7 +389,7 @@ cat > "$DIST_DIR/index.html" << 'EOF'
     <h1>🏍️ HERITAGE Motors</h1>
     <p>Redirecting to latest version...</p>
     <p style="margin-top: 2rem; font-size: 1rem;">
-      <a href="./commit-11/" style="color: #c19a6b; text-decoration: none;">Click here if not redirected automatically</a>
+      <a href="./commit-13/" style="color: #c19a6b; text-decoration: none;">Click here if not redirected automatically</a>
     </p>
   </div>
 </body>
@@ -406,7 +407,7 @@ echo -e "${BLUE}========================================${NC}"
 echo -e "${GREEN}Build Complete!${NC}"
 echo -e "${BLUE}========================================${NC}"
 echo -e "${YELLOW}Output directory: ${DIST_DIR}/${NC}"
-echo -e "${YELLOW}Total commits built: 10${NC}"
+echo -e "${YELLOW}Total commits built: 13${NC}"
 echo ""
 echo -e "${GREEN}Next steps:${NC}"
 echo -e "  1. Test locally: ${YELLOW}npx serve dist${NC}"
