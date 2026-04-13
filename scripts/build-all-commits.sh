@@ -116,6 +116,17 @@ NEXTCONFIG
     # Check if out directory exists and has content
     if [ -d "out" ] && [ "$(ls -A out)" ]; then
       cp -r out/* "$DIST_DIR/commit-$i/"
+      
+      # Copy public assets to root of dist directory as workaround for asset path issues
+      echo -e "${YELLOW}Copying public assets to root...${NC}"
+      if [ -d "public" ]; then
+        # Copy image and audio files to root
+        cp -f public/*.png "$DIST_DIR/" 2>/dev/null || true
+        cp -f public/*.avif "$DIST_DIR/" 2>/dev/null || true
+        cp -f public/*.mp3 "$DIST_DIR/" 2>/dev/null || true
+        cp -f public/*.jpg "$DIST_DIR/" 2>/dev/null || true
+        cp -f public/*.jpeg "$DIST_DIR/" 2>/dev/null || true
+      fi
     else
       echo -e "${RED}✗ Error: out directory is empty or doesn't exist${NC}"
       echo -e "${YELLOW}⚠ Skipping commit #$i${NC}"
