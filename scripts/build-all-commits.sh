@@ -133,6 +133,7 @@ NEXTCONFIG
         -e 's|src="/bike2\.png"|src="/heritage-demo/bike2.png"|g' \
         -e 's|src="/bike3\.png"|src="/heritage-demo/bike3.png"|g' \
         -e 's|src="/bob\.png"|src="/heritage-demo/bob.png"|g' \
+        -e 's|src="/image-Photoroom\.png"|src="/heritage-demo/bike1.png"|g' \
         -e 's|"/revvingsound\.mp3"|"/heritage-demo/revvingsound.mp3"|g' \
         {} \;
       
@@ -142,12 +143,14 @@ NEXTCONFIG
         -e 's|"/bike2\.png"|"/heritage-demo/bike2.png"|g' \
         -e 's|"/bike3\.png"|"/heritage-demo/bike3.png"|g' \
         -e 's|"/bob\.png"|"/heritage-demo/bob.png"|g' \
+        -e 's|"/image-Photoroom\.png"|"/heritage-demo/bike1.png"|g' \
         -e 's|"/route66\.avif"|"/heritage-demo/route66.avif"|g' \
         -e 's|"/revvingsound\.mp3"|"/heritage-demo/revvingsound.mp3"|g' \
         -e "s|'/bike1\.png'|'/heritage-demo/bike1.png'|g" \
         -e "s|'/bike2\.png'|'/heritage-demo/bike2.png'|g" \
         -e "s|'/bike3\.png'|'/heritage-demo/bike3.png'|g" \
         -e "s|'/bob\.png'|'/heritage-demo/bob.png'|g" \
+        -e "s|'/image-Photoroom\.png'|'/heritage-demo/bike1.png'|g" \
         -e "s|'/route66\.avif'|'/heritage-demo/route66.avif'|g" \
         -e "s|'/revvingsound\.mp3'|'/heritage-demo/revvingsound.mp3'|g" \
         {} \;
@@ -385,7 +388,7 @@ cat > "$DIST_DIR/index.html" << 'EOF'
     <h1>🏍️ HERITAGE Motors</h1>
     <p>Redirecting to latest version...</p>
     <p style="margin-top: 2rem; font-size: 1rem;">
-      <a href="./commit-10/" style="color: #c19a6b; text-decoration: none;">Click here if not redirected automatically</a>
+      <a href="./commit-11/" style="color: #c19a6b; text-decoration: none;">Click here if not redirected automatically</a>
     </p>
   </div>
 </body>
