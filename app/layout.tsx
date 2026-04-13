@@ -1,13 +1,20 @@
-import { Crimson_Text, Geist_Mono } from "next/font/google"
+import { Playfair_Display, Inter, Geist_Mono } from "next/font/google"
 
 import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
 import { cn } from "@/lib/utils";
 
-const crimsonText = Crimson_Text({
+const playfairDisplay = Playfair_Display({
   subsets: ['latin'],
-  weight: ['400', '600', '700'],
-  variable: '--font-serif',
+  weight: ['400', '500', '600', '700'],
+  variable: '--font-heading',
+  display: 'swap',
+})
+
+const inter = Inter({
+  subsets: ['latin'],
+  weight: ['300', '400', '500', '600'],
+  variable: '--font-sans',
   display: 'swap',
 })
 
@@ -25,9 +32,13 @@ export default function RootLayout({
     <html
       lang="en"
       suppressHydrationWarning
-      className={cn("antialiased", fontMono.variable, crimsonText.variable, "font-serif")}
+      className={cn(
+              "antialiased",
+              fontMono.variable,
+              "font-sans"
+            )}
     >
-      <body>
+      <body className="font-sans">
         <ThemeProvider>{children}</ThemeProvider>
       </body>
     </html>
