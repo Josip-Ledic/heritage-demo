@@ -157,7 +157,26 @@ NEXTCONFIG
         # Remove backup files
         find "$DIST_DIR/commit-$i" -name "*.bak" -type f -delete
       else
-        echo -e "${YELLOW}Skipping sed replacements for commit $i (has getAssetPath)${NC}"
+        # For commits 10+, only fix bob.png and route66.avif which aren't using getAssetPath
+        echo -e "${YELLOW}Fixing bob.png and route66.avif paths for commit $i${NC}"
+        
+        # Fix HTML files
+        find "$DIST_DIR/commit-$i" -name "*.html" -type f -exec sed -i.bak \
+          -e 's|src="/bob\.png"|src="/heritage-demo/bob.png"|g' \
+          -e "s|url('/route66\.avif')|url('/heritage-demo/route66.avif')|g" \
+          -e "s|url(\&\#x27;/route66\.avif\&\#x27;)|url(\&\#x27;/heritage-demo/route66.avif\&\#x27;)|g" \
+          {} \;
+        
+        # Fix JavaScript files
+        find "$DIST_DIR/commit-$i" -name "*.js" -type f -exec sed -i.bak \
+          -e 's|"/bob\.png"|"/heritage-demo/bob.png"|g' \
+          -e "s|'/bob\.png'|'/heritage-demo/bob.png'|g" \
+          -e 's|"/route66\.avif"|"/heritage-demo/route66.avif"|g' \
+          -e "s|'/route66\.avif'|'/heritage-demo/route66.avif'|g" \
+          {} \;
+        
+        # Remove backup files
+        find "$DIST_DIR/commit-$i" -name "*.bak" -type f -delete
       fi
       
       # Copy public assets to root of dist directory
