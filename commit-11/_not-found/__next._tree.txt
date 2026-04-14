@@ -1,0 +1,2 @@
+:HL["/heritage-demo/commit-11/_next/static/chunks/6a9cbc60e44cf8f3.css","style"]
+0:{"buildId":"d6cr3Gje3Q1WJR_w-syJ5","tree":{"name":"","paramType":null,"paramKey":"","hasRuntimePrefetch":false,"slots":{"children":{"name":"/_not-found","paramType":null,"paramKey":"/_not-found","hasRuntimePrefetch":false,"slots":{"children":{"name":"__PAGE__","paramType":null,"paramKey":"__PAGE__","hasRuntimePrefetch":false,"slots":null,"isRootLayout":false}},"isRootLayout":false}},"isRootLayout":true},"staleTime":300}

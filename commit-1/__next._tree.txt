@@ -1,0 +1,4 @@
+:HL["/heritage-demo/commit-1/_next/static/chunks/4a84dee5e41145e4.css","style"]
+:HL["/heritage-demo/commit-1/_next/static/media/797e433ab948586e-s.p.dbea232f.woff2","font",{"crossOrigin":"","type":"font/woff2"}]
+:HL["/heritage-demo/commit-1/_next/static/media/f7aa21714c1c53f8-s.p.e3544bb0.woff2","font",{"crossOrigin":"","type":"font/woff2"}]
+0:{"buildId":"yLJ7rfygWZ9449AS1WdON","tree":{"name":"","paramType":null,"paramKey":"","hasRuntimePrefetch":false,"slots":{"children":{"name":"__PAGE__","paramType":null,"paramKey":"__PAGE__","hasRuntimePrefetch":false,"slots":null,"isRootLayout":false}},"isRootLayout":true},"staleTime":300}

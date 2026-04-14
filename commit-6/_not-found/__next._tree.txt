@@ -1,0 +1,2 @@
+:HL["/heritage-demo/commit-6/_next/static/chunks/c7700adad7998014.css","style"]
+0:{"buildId":"BDkf_Knpt40IfNKyds8oy","tree":{"name":"","paramType":null,"paramKey":"","hasRuntimePrefetch":false,"slots":{"children":{"name":"/_not-found","paramType":null,"paramKey":"/_not-found","hasRuntimePrefetch":false,"slots":{"children":{"name":"__PAGE__","paramType":null,"paramKey":"__PAGE__","hasRuntimePrefetch":false,"slots":null,"isRootLayout":false}},"isRootLayout":false}},"isRootLayout":true},"staleTime":300}
