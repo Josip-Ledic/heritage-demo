@@ -32,7 +32,7 @@ declare -A COMMITS=(
   [10]="55a2164:tenth"
   [11]="c0a94ba:eleventh"
   [12]="6dffa9a:twelfth"
-  [13]="724ac73:thirteenth"
+  [13]="881d78e:thirteenth"
 )
 
 echo -e "${BLUE}========================================${NC}"
